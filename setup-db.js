@@ -1,7 +1,8 @@
 import postgres from 'postgres';
 
 // URL com senha encoded (% para caracteres especiais)
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:Pietr%40Auror%402017@db.wlmhtuqbzyethknlggwg.supabase.co:5432/postgres';
+// Usa DATABASE_URL do .env.local ou fallback hardcoded
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.wlmhtuqbzyethknlggwg:Pietr%40Auror%402017@aws-0-us-west-2.pooler.supabase.com:6543/postgres';
 const sql = postgres(connectionString, { ssl: 'require' });
 
 const DDL = `
