@@ -7,11 +7,9 @@
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
   }
-}
 
-@layer base {
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-gray-950;
   }
 }
 
