@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(node setup-db.js:*)",
+      "Bash(npm install:*)",
+      "Bash(node test-connection.js:*)",
+      "Bash(curl:*)",
+      "Bash(node check-tables.js:*)",
+      "Bash(npm run dev:*)"
+    ]
+  }
+}
