@@ -2,8 +2,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
-  const supabase = createSupabaseServerClient()
-  
+  const supabase = await createSupabaseServerClient()
+
   // Verificar usuário autenticado
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (!user || authError) {

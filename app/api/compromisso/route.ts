@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 export async function GET(req: Request) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Verificar usuário autenticado
   const {
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Verificar usuário autenticado
   const {
@@ -112,7 +112,7 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Verificar usuário autenticado
   const {
@@ -178,7 +178,7 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Verificar usuário autenticado
   const {
