@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
+export const dynamic = 'force-dynamic'
+
 interface Compromisso {
   ID_COMPROMISSO: string
   TITULO: string
