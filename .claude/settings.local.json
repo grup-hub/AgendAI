@@ -7,7 +7,8 @@
       "Bash(node test-connection.js:*)",
       "Bash(curl:*)",
       "Bash(node check-tables.js:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(git pull:*)"
     ]
   }
 }
