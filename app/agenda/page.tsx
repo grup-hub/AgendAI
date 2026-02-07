@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
@@ -21,7 +21,7 @@ interface Compromisso {
 
 export default function AgendaPage() {
   const router = useRouter()
-  const supabase = createSupabaseBrowserClient()
+  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
 
   const [usuario, setUsuario] = useState<any>(null)
   const [compromissos, setCompromissos] = useState<Compromisso[]>([])
@@ -30,18 +30,7 @@ export default function AgendaPage() {
 
   useEffect(() => {
     async function carregar() {
-      // Verificar autenticação
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
-
-      setUsuario(session.user)
-
-      // Buscar compromissos
+      // Buscar compromissos (middleware já protege a rota)
       const response = await fetch('/api/compromisso')
       if (response.status === 401) {
         router.push('/login')
@@ -57,6 +46,13 @@ export default function AgendaPage() {
 
       const data = await response.json()
       setCompromissos(data.compromissos || [])
+
+      // Obter dados do usuário para exibição (sem chamada extra ao Supabase Auth)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setUsuario(session.user)
+      }
+
       setCarregando(false)
     }
 

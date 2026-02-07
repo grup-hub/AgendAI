@@ -18,6 +18,7 @@ export default function CadastroPage() {
 
   async function handleCadastro(e: React.FormEvent) {
     e.preventDefault()
+    if (carregando) return // Evitar cliques duplos
     setCarregando(true)
     setErro('')
 
@@ -30,7 +31,11 @@ export default function CadastroPage() {
     })
 
     if (authError) {
-      setErro(authError.message)
+      if (authError.message.includes('rate limit') || authError.status === 429) {
+        setErro('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
+      } else {
+        setErro(authError.message)
+      }
       setCarregando(false)
       return
     }

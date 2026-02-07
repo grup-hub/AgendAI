@@ -4,6 +4,17 @@ import { createServerClient } from '@supabase/ssr'
 const PROTECTED_PREFIXES = ['/agenda', '/compartilhar', '/configuracoes', '/convite']
 
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl
+
+  // Só verificar autenticação em rotas protegidas (evita chamadas desnecessárias)
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
+  const isApiRoute = pathname.startsWith('/api/')
+
+  // Se não é rota protegida nem API, apenas continua sem chamar o Supabase
+  if (!isProtected && !isApiRoute) {
+    return NextResponse.next()
+  }
+
   let res = NextResponse.next()
 
   const supabase = createServerClient(
@@ -24,8 +35,8 @@ export async function middleware(req: NextRequest) {
   )
 
   const { data } = await supabase.auth.getUser()
-  const isProtected = PROTECTED_PREFIXES.some((p) => req.nextUrl.pathname.startsWith(p))
 
+  // Redirecionar para login se não autenticado em rota protegida
   if (isProtected && !data.user) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
@@ -36,5 +47,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)'],
 }

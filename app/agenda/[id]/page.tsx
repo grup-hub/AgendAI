@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
 
@@ -22,7 +22,7 @@ export default function EditarCompromissoPage() {
   const router = useRouter()
   const params = useParams()
   const idCompromisso = params.id as string
-  const supabase = createSupabaseBrowserClient()
+  const supabase = useMemo(() => createSupabaseBrowserClient(), [])
 
   const [compromisso, setCompromisso] = useState<Compromisso | null>(null)
   const [titulo, setTitulo] = useState('')
@@ -37,16 +37,7 @@ export default function EditarCompromissoPage() {
 
   useEffect(() => {
     async function carregar() {
-      // Verificar autenticação
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
-
-      // Buscar compromisso
+      // Buscar compromisso (middleware já protege a rota)
       const response = await fetch('/api/compromisso')
       if (response.status === 401) {
         router.push('/login')
@@ -84,7 +75,7 @@ export default function EditarCompromissoPage() {
     }
 
     carregar()
-  }, [router, supabase, idCompromisso])
+  }, [router, idCompromisso])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

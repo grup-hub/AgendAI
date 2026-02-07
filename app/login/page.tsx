@@ -16,6 +16,7 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
+    if (carregando) return // Evitar cliques duplos
     setCarregando(true)
     setErro('')
 
@@ -27,7 +28,11 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setErro(error.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : error.message)
+      if (error.message.includes('rate limit') || error.status === 429) {
+        setErro('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
+      } else {
+        setErro(error.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : error.message)
+      }
       setCarregando(false)
       return
     }
