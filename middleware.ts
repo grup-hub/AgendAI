@@ -6,12 +6,11 @@ const PROTECTED_PREFIXES = ['/agenda', '/compartilhar', '/configuracoes', '/conv
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Só verificar autenticação em rotas protegidas (evita chamadas desnecessárias)
+  // Só verificar autenticação em rotas de página protegidas
+  // APIs fazem sua própria autenticação via getUser() no handler
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
-  const isApiRoute = pathname.startsWith('/api/')
 
-  // Se não é rota protegida nem API, apenas continua sem chamar o Supabase
-  if (!isProtected && !isApiRoute) {
+  if (!isProtected) {
     return NextResponse.next()
   }
 
@@ -36,8 +35,7 @@ export async function middleware(req: NextRequest) {
 
   const { data } = await supabase.auth.getUser()
 
-  // Redirecionar para login se não autenticado em rota protegida
-  if (isProtected && !data.user) {
+  if (!data.user) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -47,5 +45,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
