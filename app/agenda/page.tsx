@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 
 interface Compromisso {
   ID_COMPROMISSO: string
+  ID_AGENDA: string
   TITULO: string
   DESCRICAO?: string
   LOCAL?: string
@@ -17,6 +18,10 @@ interface Compromisso {
   ORIGEM: string
   STATUS: string
   CRIADO_POR: string
+  agenda_nome?: string
+  dono_nome?: string
+  compartilhado?: boolean
+  permissao?: string
 }
 
 export default function AgendaPage() {
@@ -150,15 +155,26 @@ export default function AgendaPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">Meus Compromissos</h2>
+            <h2 className="text-xl font-bold text-gray-900">Compromissos</h2>
             {compromissos.map((comp) => (
               <div
                 key={comp.ID_COMPROMISSO}
-                className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition"
+                className={`rounded-lg shadow-sm p-6 hover:shadow-md transition ${
+                  comp.compartilhado
+                    ? 'bg-purple-50 border border-purple-100'
+                    : 'bg-white'
+                }`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">{comp.TITULO}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-gray-900">{comp.TITULO}</h3>
+                      {comp.compartilhado && (
+                        <span className="inline-block px-2 py-0.5 rounded text-xs bg-purple-100 text-purple-700">
+                          Compartilhado por {comp.dono_nome}
+                        </span>
+                      )}
+                    </div>
                     {comp.DESCRICAO && (
                       <p className="text-gray-600 mt-1 whitespace-pre-wrap">{comp.DESCRICAO}</p>
                     )}
@@ -181,21 +197,31 @@ export default function AgendaPage() {
                       >
                         {comp.STATUS}
                       </span>
+                      {comp.compartilhado && (
+                        <span className="inline-block px-2 py-1 rounded bg-purple-50 text-purple-700 ml-1">
+                          {comp.permissao === 'EDITAR' ? 'Pode editar' : 'Somente visualizar'}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 ml-4">
-                    <Link
-                      href={`/agenda/${comp.ID_COMPROMISSO}`}
-                      className="px-3 py-1 rounded text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
-                    >
-                      Editar
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(comp.ID_COMPROMISSO)}
-                      className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
-                    >
-                      Deletar
-                    </button>
+                    {/* Só mostra editar/deletar para compromissos próprios ou compartilhados com permissão EDITAR */}
+                    {(!comp.compartilhado || comp.permissao === 'EDITAR') && (
+                      <Link
+                        href={`/agenda/${comp.ID_COMPROMISSO}`}
+                        className="px-3 py-1 rounded text-sm bg-blue-50 text-blue-700 hover:bg-blue-100"
+                      >
+                        Editar
+                      </Link>
+                    )}
+                    {!comp.compartilhado && (
+                      <button
+                        onClick={() => handleDelete(comp.ID_COMPROMISSO)}
+                        className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                      >
+                        Deletar
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

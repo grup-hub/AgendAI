@@ -1,10 +1,12 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   const supabase = await createSupabaseServerClient()
+  const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
   const {
@@ -16,9 +18,9 @@ export async function GET(req: Request) {
   }
 
   // Buscar agenda do usuário
-  const { data: agenda, error: agendaError } = await supabase
+  const { data: agenda, error: agendaError } = await supabaseAdmin
     .from('AGENDA')
-    .select('ID_AGENDA')
+    .select('ID_AGENDA, NOME')
     .eq('ID_USUARIO', user.id)
     .single()
 
@@ -26,12 +28,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: 'Agenda não encontrada' }, { status: 404 })
   }
 
-  // Buscar compromissos da agenda
-  const { data: compromissos, error: compromissoError } = await supabase
+  // Buscar compromissos da própria agenda
+  const { data: meusCompromissos, error: compromissoError } = await supabaseAdmin
     .from('COMPROMISSO')
     .select(
       `
       ID_COMPROMISSO,
+      ID_AGENDA,
       TITULO,
       DESCRICAO,
       LOCAL,
@@ -51,7 +54,96 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: compromissoError.message }, { status: 400 })
   }
 
-  return NextResponse.json({ compromissos })
+  // Buscar agendas compartilhadas aceitas
+  const { data: compartilhamentos } = await supabaseAdmin
+    .from('COMPARTILHAMENTO_AGENDA')
+    .select('ID_AGENDA, PERMISSAO')
+    .eq('ID_USUARIO_CONVIDADO', user.id)
+    .eq('STATUS', 'ACEITO')
+
+  let compartilhados: any[] = []
+  let agendasInfo: any[] = []
+
+  if (compartilhamentos && compartilhamentos.length > 0) {
+    const agendaIds = compartilhamentos.map((c) => c.ID_AGENDA)
+
+    // Buscar info das agendas compartilhadas e seus donos
+    const { data: agendasCompart } = await supabaseAdmin
+      .from('AGENDA')
+      .select('ID_AGENDA, NOME, ID_USUARIO')
+      .in('ID_AGENDA', agendaIds)
+
+    if (agendasCompart && agendasCompart.length > 0) {
+      const donoIds = agendasCompart.map((a) => a.ID_USUARIO)
+      const { data: donos } = await supabaseAdmin
+        .from('USUARIO')
+        .select('ID_USUARIO, NOME, EMAIL')
+        .in('ID_USUARIO', donoIds)
+
+      const donosMap = new Map(donos?.map((d) => [d.ID_USUARIO, d]) || [])
+      const permissaoMap = new Map(compartilhamentos.map((c) => [c.ID_AGENDA, c.PERMISSAO]))
+
+      agendasInfo = agendasCompart.map((a) => ({
+        ID_AGENDA: a.ID_AGENDA,
+        NOME: a.NOME,
+        dono: donosMap.get(a.ID_USUARIO) || null,
+        PERMISSAO: permissaoMap.get(a.ID_AGENDA) || 'VISUALIZAR',
+      }))
+
+      // Buscar compromissos de todas as agendas compartilhadas
+      const { data: compromissosCompart } = await supabaseAdmin
+        .from('COMPROMISSO')
+        .select(
+          `
+          ID_COMPROMISSO,
+          ID_AGENDA,
+          TITULO,
+          DESCRICAO,
+          LOCAL,
+          DATA_INICIO,
+          DATA_FIM,
+          ORIGEM,
+          STATUS,
+          CRIADO_POR,
+          DATA_CADASTRO,
+          LEMBRETE(ID_LEMBRETE, TIPO, ANTECEDENCIA_MINUTOS, ENVIADO)
+        `
+        )
+        .in('ID_AGENDA', agendaIds)
+        .order('DATA_INICIO', { ascending: true })
+
+      compartilhados = compromissosCompart || []
+    }
+  }
+
+  // Marcar compromissos com informação de origem
+  const meusComLabel = (meusCompromissos || []).map((c) => ({
+    ...c,
+    agenda_nome: agenda.NOME,
+    compartilhado: false,
+  }))
+
+  const agendasInfoMap = new Map(agendasInfo.map((a) => [a.ID_AGENDA, a]))
+  const compartLabel = compartilhados.map((c: any) => {
+    const agInfo = agendasInfoMap.get(c.ID_AGENDA)
+    return {
+      ...c,
+      agenda_nome: agInfo?.NOME || 'Agenda compartilhada',
+      dono_nome: agInfo?.dono?.NOME || agInfo?.dono?.EMAIL || '',
+      compartilhado: true,
+      permissao: agInfo?.PERMISSAO || 'VISUALIZAR',
+    }
+  })
+
+  // Juntar tudo e ordenar por data
+  const todosCompromissos = [...meusComLabel, ...compartLabel].sort(
+    (a, b) => new Date(a.DATA_INICIO).getTime() - new Date(b.DATA_INICIO).getTime()
+  )
+
+  return NextResponse.json({
+    compromissos: todosCompromissos,
+    agendasCompartilhadas: agendasInfo,
+  })
 }
 
 export async function POST(req: Request) {
