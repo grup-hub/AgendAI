@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     const supabase = createSupabaseBrowserClient()
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: loginData, error } = await supabase.auth.signInWithPassword({
       email,
       password: senha,
     })
@@ -30,11 +30,27 @@ export default function LoginPage() {
     if (error) {
       if (error.message.includes('rate limit') || error.status === 429) {
         setErro('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
+      } else if (error.message === 'Email not confirmed') {
+        setErro('Email ainda não confirmado. Verifique sua caixa de entrada.')
       } else {
         setErro(error.message === 'Invalid login credentials' ? 'Email ou senha inválidos' : error.message)
       }
       setCarregando(false)
       return
+    }
+
+    // Auto-onboarding: se o usuário não tem perfil, criar automaticamente
+    if (loginData.user) {
+      await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: loginData.user.email?.split('@')[0] || 'Novo Usuário',
+          userId: loginData.user.id,
+          email: loginData.user.email,
+        }),
+      })
+      // Ignora erros aqui - se já fez onboarding, a API retorna OK sem duplicar
     }
 
     router.push('/agenda')

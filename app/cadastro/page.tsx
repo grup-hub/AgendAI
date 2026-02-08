@@ -15,6 +15,7 @@ export default function CadastroPage() {
   const [telefone, setTelefone] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
+  const [cadastroSucesso, setCadastroSucesso] = useState(false)
 
   async function handleCadastro(e: React.FormEvent) {
     e.preventDefault()
@@ -40,21 +41,54 @@ export default function CadastroPage() {
       return
     }
 
-    // Fazer onboarding (criar usuário e agenda)
-    const response = await fetch('/api/onboarding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nome, telefone }),
-    })
+    // Fazer onboarding (criar usuário e agenda) usando o ID retornado pelo signUp
+    if (authData.user) {
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome,
+          telefone,
+          userId: authData.user.id,
+          email: authData.user.email,
+        }),
+      })
 
-    if (!response.ok) {
-      const data = await response.json()
-      setErro(data.message || 'Erro ao criar perfil')
-      setCarregando(false)
-      return
+      if (!response.ok) {
+        const data = await response.json()
+        setErro(data.message || 'Erro ao criar perfil')
+        setCarregando(false)
+        return
+      }
     }
 
-    router.push('/agenda')
+    // Mostrar mensagem de confirmação de email
+    setCadastroSucesso(true)
+    setCarregando(false)
+  }
+
+  if (cadastroSucesso) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="text-5xl mb-4">📧</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifique seu email</h1>
+          <p className="text-gray-600 mb-6">
+            Enviamos um link de confirmação para <strong>{email}</strong>.
+            Clique no link para ativar sua conta.
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Não recebeu? Verifique sua pasta de spam.
+          </p>
+          <Link
+            href="/login"
+            className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            Ir para o Login
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
