@@ -12,6 +12,7 @@ export default function NovoCompromissoPage() {
   const [local, setLocal] = useState('')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
+  const [lembreteMinutos, setLembreteMinutos] = useState('60')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -36,6 +37,7 @@ export default function NovoCompromissoPage() {
         DATA_INICIO: new Date(dataInicio).toISOString(),
         DATA_FIM: new Date(dataFim).toISOString(),
         ORIGEM: 'MANUAL',
+        LEMBRETE_MINUTOS: lembreteMinutos !== '0' ? lembreteMinutos : undefined,
       }),
     })
 
@@ -153,6 +155,28 @@ export default function NovoCompromissoPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+            </div>
+
+            {/* Lembrete */}
+            <div>
+              <label htmlFor="lembrete" className="block text-sm font-medium text-gray-700 mb-2">
+                Lembrete WhatsApp
+              </label>
+              <select
+                id="lembrete"
+                value={lembreteMinutos}
+                onChange={(e) => setLembreteMinutos(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="0">Sem lembrete</option>
+                <option value="15">15 minutos antes</option>
+                <option value="30">30 minutos antes</option>
+                <option value="60">1 hora antes</option>
+                <option value="1440">1 dia antes</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Ative o WhatsApp em Configurações para receber lembretes
+              </p>
             </div>
 
             {/* Botões */}

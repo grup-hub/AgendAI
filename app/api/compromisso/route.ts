@@ -148,6 +148,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const supabase = await createSupabaseServerClient()
+  const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
   const {
@@ -160,7 +161,7 @@ export async function POST(req: Request) {
 
   // Pegar dados do body
   const body = await req.json()
-  const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM } = body
+  const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, LEMBRETE_MINUTOS } = body
 
   // Validações básicas
   if (!TITULO || !DATA_INICIO || !DATA_FIM) {
@@ -200,6 +201,31 @@ export async function POST(req: Request) {
 
   if (compromissoError) {
     return NextResponse.json({ message: compromissoError.message }, { status: 400 })
+  }
+
+  // Criar lembrete WhatsApp automaticamente se o usuário tem WhatsApp ativado
+  if (compromisso) {
+    try {
+      const { data: dispositivo } = await supabaseAdmin
+        .from('DISPOSITIVO_PUSH')
+        .select('ID_DISPOSITIVO')
+        .eq('ID_USUARIO', user.id)
+        .eq('PROVIDER', 'WHATSAPP')
+        .eq('ATIVO', true)
+        .single()
+
+      if (dispositivo) {
+        const minutos = LEMBRETE_MINUTOS ? parseInt(LEMBRETE_MINUTOS) : 60
+        await supabaseAdmin.from('LEMBRETE').insert({
+          ID_COMPROMISSO: compromisso.ID_COMPROMISSO,
+          TIPO: 'WHATSAPP',
+          ANTECEDENCIA_MINUTOS: minutos > 0 ? minutos : 60,
+          ENVIADO: false,
+        })
+      }
+    } catch {
+      // Não bloqueia a criação do compromisso se o lembrete falhar
+    }
   }
 
   return NextResponse.json({ message: 'Compromisso criado com sucesso', compromisso }, { status: 201 })
