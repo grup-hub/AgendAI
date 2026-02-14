@@ -1,8 +1,7 @@
 import { supabase } from './supabase'
 
 // URL base da API web (Next.js)
-// Em produção, trocar pelo domínio do Vercel ou domínio próprio
-const API_BASE_URL = 'https://agendai-web.vercel.app'
+const API_BASE_URL = 'https://sistema-agendai.vercel.app'
 
 // Para desenvolvimento local, descomente a linha abaixo:
 // const API_BASE_URL = 'http://192.168.X.X:3000'
