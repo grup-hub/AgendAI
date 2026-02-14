@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import {
   View,
   Text,
@@ -10,11 +10,9 @@ import {
   Platform,
   ScrollView,
 } from 'react-native'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import { criarCompromisso } from '../lib/api'
 
 export default function NovoCompromissoScreen({ navigation }: any) {
-  const { user } = useAuth()
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
   const [dataInicio, setDataInicio] = useState('')
@@ -22,23 +20,6 @@ export default function NovoCompromissoScreen({ navigation }: any) {
   const [horaFim, setHoraFim] = useState('')
   const [local, setLocal] = useState('')
   const [carregando, setCarregando] = useState(false)
-  const [agendaId, setAgendaId] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function buscarAgenda() {
-      if (!user) return
-      const { data } = await supabase
-        .from('AGENDA')
-        .select('ID_AGENDA')
-        .eq('ID_USUARIO', user.id)
-        .eq('ATIVA', true)
-        .limit(1)
-        .single()
-
-      if (data) setAgendaId(data.ID_AGENDA)
-    }
-    buscarAgenda()
-  }, [user])
 
   function formatarDataInput(text: string) {
     const nums = text.replace(/\D/g, '')
@@ -84,10 +65,6 @@ export default function NovoCompromissoScreen({ navigation }: any) {
       Alert.alert('Erro', 'Data e hora de inicio sao obrigatorios')
       return
     }
-    if (!agendaId) {
-      Alert.alert('Erro', 'Nenhuma agenda encontrada')
-      return
-    }
 
     const dataInicioISO = parseDataHora(dataInicio, horaInicio)
     if (!dataInicioISO) {
@@ -95,25 +72,22 @@ export default function NovoCompromissoScreen({ navigation }: any) {
       return
     }
 
-    let dataFimISO = null
+    let dataFimISO = dataInicioISO
     if (horaFim) {
-      dataFimISO = parseDataHora(dataInicio, horaFim)
+      const parsed = parseDataHora(dataInicio, horaFim)
+      if (parsed) dataFimISO = parsed
     }
 
     setCarregando(true)
     try {
-      const { error } = await supabase.from('COMPROMISSO').insert({
-        ID_AGENDA: agendaId,
+      await criarCompromisso({
         TITULO: titulo.trim(),
         DESCRICAO: descricao.trim() || null,
+        LOCAL: local.trim() || null,
         DATA_INICIO: dataInicioISO,
         DATA_FIM: dataFimISO,
-        LOCAL: local.trim() || null,
-        STATUS: 'CONFIRMADO',
         ORIGEM: 'APP_MOBILE',
       })
-
-      if (error) throw error
 
       Alert.alert('Sucesso', 'Compromisso criado!', [
         { text: 'OK', onPress: () => navigation.goBack() },

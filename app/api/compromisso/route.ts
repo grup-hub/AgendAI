@@ -1,18 +1,37 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
+// Helper: autenticar via cookie (web) ou Bearer token (mobile)
+async function getAuthenticatedUser(req: Request) {
+  const authHeader = req.headers.get('authorization')
+
+  if (authHeader?.startsWith('Bearer ')) {
+    // Mobile: autenticação via token
+    const token = authHeader.replace('Bearer ', '')
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    )
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    return { user, error }
+  }
+
+  // Web: autenticação via cookie
   const supabase = await createSupabaseServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
+
+export async function GET(req: Request) {
   const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
@@ -147,14 +166,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient()
   const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
@@ -164,15 +179,15 @@ export async function POST(req: Request) {
   const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, LEMBRETE_MINUTOS } = body
 
   // Validações básicas
-  if (!TITULO || !DATA_INICIO || !DATA_FIM) {
+  if (!TITULO || !DATA_INICIO) {
     return NextResponse.json(
-      { message: 'TITULO, DATA_INICIO e DATA_FIM são obrigatórios' },
+      { message: 'TITULO e DATA_INICIO são obrigatórios' },
       { status: 400 }
     )
   }
 
   // Buscar agenda do usuário
-  const { data: agenda, error: agendaError } = await supabase
+  const { data: agenda, error: agendaError } = await supabaseAdmin
     .from('AGENDA')
     .select('ID_AGENDA')
     .eq('ID_USUARIO', user.id)
@@ -182,8 +197,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Agenda não encontrada' }, { status: 404 })
   }
 
-  // Criar compromisso
-  const { data: compromisso, error: compromissoError } = await supabase
+  // Criar compromisso (via admin para bypassar RLS)
+  const { data: compromisso, error: compromissoError } = await supabaseAdmin
     .from('COMPROMISSO')
     .insert({
       ID_AGENDA: agenda.ID_AGENDA,
@@ -191,7 +206,7 @@ export async function POST(req: Request) {
       DESCRICAO: DESCRICAO || null,
       LOCAL: LOCAL || null,
       DATA_INICIO,
-      DATA_FIM,
+      DATA_FIM: DATA_FIM || DATA_INICIO,
       ORIGEM: ORIGEM || 'MANUAL',
       CRIADO_POR: user.id,
       STATUS: 'ATIVO',
@@ -232,13 +247,10 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const supabase = await createSupabaseServerClient()
+  const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
@@ -252,7 +264,7 @@ export async function PUT(req: Request) {
   }
 
   // Verificar se o compromisso pertence ao usuário
-  const { data: compromisso, error: checkError } = await supabase
+  const { data: compromisso, error: checkError } = await supabaseAdmin
     .from('COMPROMISSO')
     .select('ID_AGENDA')
     .eq('ID_COMPROMISSO', ID_COMPROMISSO)
@@ -263,7 +275,7 @@ export async function PUT(req: Request) {
   }
 
   // Verificar se a agenda pertence ao usuário
-  const { data: agenda, error: agendaError } = await supabase
+  const { data: agenda, error: agendaError } = await supabaseAdmin
     .from('AGENDA')
     .select('ID_AGENDA')
     .eq('ID_AGENDA', compromisso.ID_AGENDA)
@@ -283,7 +295,7 @@ export async function PUT(req: Request) {
   if (DATA_FIM !== undefined) updateData.DATA_FIM = DATA_FIM
   if (STATUS !== undefined) updateData.STATUS = STATUS
 
-  const { data: updated, error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabaseAdmin
     .from('COMPROMISSO')
     .update(updateData)
     .eq('ID_COMPROMISSO', ID_COMPROMISSO)
@@ -298,13 +310,10 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const supabase = await createSupabaseServerClient()
+  const supabaseAdmin = createSupabaseAdmin()
 
   // Verificar usuário autenticado
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
@@ -318,7 +327,7 @@ export async function DELETE(req: Request) {
   }
 
   // Verificar se o compromisso pertence ao usuário
-  const { data: compromisso, error: checkError } = await supabase
+  const { data: compromisso, error: checkError } = await supabaseAdmin
     .from('COMPROMISSO')
     .select('ID_AGENDA')
     .eq('ID_COMPROMISSO', idCompromisso)
@@ -329,7 +338,7 @@ export async function DELETE(req: Request) {
   }
 
   // Verificar se a agenda pertence ao usuário
-  const { data: agenda, error: agendaError } = await supabase
+  const { data: agenda, error: agendaError } = await supabaseAdmin
     .from('AGENDA')
     .select('ID_AGENDA')
     .eq('ID_AGENDA', compromisso.ID_AGENDA)
@@ -341,7 +350,7 @@ export async function DELETE(req: Request) {
   }
 
   // Deletar compromisso
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await supabaseAdmin
     .from('COMPROMISSO')
     .delete()
     .eq('ID_COMPROMISSO', idCompromisso)

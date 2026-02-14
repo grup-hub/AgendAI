@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { supabase } from '../lib/supabase'
+import { listarCompromissos } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
 interface Compromisso {
@@ -21,42 +21,20 @@ interface Compromisso {
   LOCAL: string | null
   STATUS: string
   ID_AGENDA: string
+  compartilhado?: boolean
+  dono_nome?: string
 }
 
 export default function AgendaScreen({ navigation }: any) {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
   const [compromissos, setCompromissos] = useState<Compromisso[]>([])
   const [carregando, setCarregando] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const carregarCompromissos = async () => {
-    if (!user) return
-
     try {
-      // Buscar agenda do usuário
-      const { data: agendas } = await supabase
-        .from('AGENDA')
-        .select('ID_AGENDA')
-        .eq('ID_USUARIO', user.id)
-        .eq('ATIVA', true)
-
-      if (!agendas || agendas.length === 0) {
-        setCompromissos([])
-        return
-      }
-
-      const agendaIds = agendas.map((a) => a.ID_AGENDA)
-
-      // Buscar compromissos das agendas
-      const { data, error } = await supabase
-        .from('COMPROMISSO')
-        .select('*')
-        .in('ID_AGENDA', agendaIds)
-        .gte('DATA_INICIO', new Date().toISOString().split('T')[0])
-        .order('DATA_INICIO', { ascending: true })
-
-      if (error) throw error
-      setCompromissos(data || [])
+      const data = await listarCompromissos()
+      setCompromissos(data.compromissos || [])
     } catch (err) {
       console.error('Erro ao carregar compromissos:', err)
     } finally {
@@ -69,7 +47,7 @@ export default function AgendaScreen({ navigation }: any) {
     useCallback(() => {
       setCarregando(true)
       carregarCompromissos()
-    }, [user])
+    }, [])
   )
 
   const onRefresh = () => {
@@ -89,6 +67,7 @@ export default function AgendaScreen({ navigation }: any) {
   function getStatusColor(status: string) {
     switch (status) {
       case 'CONFIRMADO': return '#10B981'
+      case 'ATIVO': return '#10B981'
       case 'CANCELADO': return '#EF4444'
       case 'PENDENTE': return '#F59E0B'
       default: return '#6B7280'
@@ -99,8 +78,7 @@ export default function AgendaScreen({ navigation }: any) {
     const { data, hora } = formatarData(item.DATA_INICIO)
     return (
       <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('DetalheCompromisso', { compromisso: item })}
+        style={[styles.card, item.compartilhado && styles.cardCompartilhado]}
         activeOpacity={0.7}
       >
         <View style={styles.cardLeft}>
@@ -109,6 +87,11 @@ export default function AgendaScreen({ navigation }: any) {
         </View>
         <View style={styles.cardContent}>
           <Text style={styles.cardTitulo} numberOfLines={1}>{item.TITULO}</Text>
+          {item.compartilhado && item.dono_nome && (
+            <Text style={styles.cardCompartilhadoText} numberOfLines={1}>
+              Compartilhado por {item.dono_nome}
+            </Text>
+          )}
           {item.LOCAL && (
             <Text style={styles.cardLocal} numberOfLines={1}>{item.LOCAL}</Text>
           )}
@@ -234,6 +217,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  cardCompartilhado: {
+    backgroundColor: '#F5F3FF',
+    borderLeftWidth: 3,
+    borderLeftColor: '#8B5CF6',
+  },
   cardLeft: {
     alignItems: 'center',
     marginRight: 16,
@@ -256,6 +244,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+  },
+  cardCompartilhadoText: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginTop: 2,
   },
   cardLocal: {
     fontSize: 13,
