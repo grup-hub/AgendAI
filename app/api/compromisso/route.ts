@@ -171,7 +171,15 @@ export async function POST(req: Request) {
   // Verificar usuário autenticado
   const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
-    return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
+    const authHeader = req.headers.get('authorization')
+    return NextResponse.json({
+      message: 'Não autorizado',
+      debug: {
+        hasAuthHeader: !!authHeader,
+        authHeaderPrefix: authHeader ? authHeader.substring(0, 20) + '...' : null,
+        errorMessage: authError?.message || 'user is null',
+      }
+    }, { status: 401 })
   }
 
   // Pegar dados do body

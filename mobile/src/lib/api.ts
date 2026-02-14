@@ -59,7 +59,8 @@ export async function criarCompromisso(dados: {
 
   if (!response.ok) {
     const data = await response.json()
-    throw new Error(data.message || 'Erro ao criar compromisso')
+    const debugInfo = data.debug ? `\n\nDebug: ${JSON.stringify(data.debug)}` : ''
+    throw new Error((data.message || 'Erro ao criar compromisso') + debugInfo)
   }
 
   return response.json()
