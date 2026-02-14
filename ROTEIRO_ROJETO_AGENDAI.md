@@ -850,4 +850,54 @@ export default function LinkPublicoEvento({ params }: { params: { token: string 
 - testar IA mock
 - testar webhook WhatsApp mock
 
+---
+
+# 15) PENDÊNCIAS — O QUE FALTA IMPLEMENTAR
+
+## 15.1 PLANO FREE (FALTANDO)
+- [ ] Link público de compromisso (compartilhar evento por link sem login)
+  - `api/compromisso/compartilhar-link/route.ts` — gerar/gerenciar links
+  - `api/compromisso/link-publico/route.ts` — buscar evento por token (público)
+  - `compartilhar/evento/[token]/page.tsx` — página pública para visualizar/importar
+- [ ] Aceitar convite por link (página dedicada)
+  - `convite/aceitar/page.tsx`
+  - `api/convite/aceitar/route.ts`
+
+## 15.2 PLANO PREMIUM (FALTANDO)
+- [ ] Controle de plano FREE vs PREMIUM (`lib/premium/plano.ts`)
+- [ ] IA Parse — texto para compromisso (`api/premium/ia/parse/route.ts`, `lib/premium/parse.ts`)
+- [ ] Push Notifications (`api/premium/push/registrar/route.ts`)
+- [ ] WhatsApp — aguardando credenciais da Meta Business API (código pronto em `lib/whatsapp/`)
+
+## 15.3 APLICATIVO MOBILE (FUTURO)
+- [ ] Criar app nativo para smartphone (Android + iOS)
+  - Opções de tecnologia: React Native / Expo (reaproveitamento do código TypeScript/React)
+  - Push notifications nativas
+  - Acesso offline / cache local
+  - Publicação na Google Play Store e Apple App Store
+  - Compartilhamento de mesma API backend (Next.js + Supabase)
+
+---
+
+# 16) STATUS ATUAL DO PROJETO
+
+## IMPLEMENTADO E FUNCIONANDO:
+- ✅ Login/Cadastro com confirmação de email
+- ✅ CRUD de Compromissos (criar, editar, deletar)
+- ✅ Visão de Agenda (lista com compromissos próprios + compartilhados)
+- ✅ Compartilhamento de Agenda entre usuários (convidar/aceitar/recusar)
+- ✅ Separação visual MINHA AGENDA vs COMPARTILHADA (badge roxo)
+- ✅ Página de Configurações com toggle WhatsApp
+- ✅ Integração WhatsApp (código completo, aguardando credenciais Meta)
+- ✅ CRON de lembretes (a cada 5 min via Vercel)
+- ✅ Middleware de autenticação
+- ✅ Campo de lembrete na criação de compromisso (15min/30min/1h/1dia)
+
+## COMMITS:
+1. `184e946` — fix: Corrigir erro 429 (rate limit)
+2. `373cd74` — fix: Corrigir recursão infinita no RLS e otimizar API routes
+3. `4dd2bb1` — fix: Corrigir fluxo de cadastro com confirmação de email
+4. `f9a35b4` — feat: Implementar compartilhamento de agenda entre usuários
+5. `ccf18da` — feat: Implementar integração com WhatsApp (Meta Cloud API)
+
 FIM.
