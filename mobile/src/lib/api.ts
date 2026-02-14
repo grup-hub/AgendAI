@@ -7,10 +7,19 @@ const API_BASE_URL = 'https://sistema-agendai.vercel.app'
 // const API_BASE_URL = 'http://192.168.X.X:3000'
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession()
+  // Primeiro tenta refreshar a sessão para garantir token válido
+  const { data: { session }, error } = await supabase.auth.refreshSession()
 
-  if (!session?.access_token) {
-    throw new Error('Usuário não autenticado')
+  if (error || !session?.access_token) {
+    // Fallback: tenta pegar sessão existente
+    const { data: { session: existingSession } } = await supabase.auth.getSession()
+    if (!existingSession?.access_token) {
+      throw new Error('Usuário não autenticado')
+    }
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${existingSession.access_token}`,
+    }
   }
 
   return {
