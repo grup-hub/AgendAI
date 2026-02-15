@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
+const SUPABASE_URL = 'https://wlmhtuqbzyethknlggwg.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbWh0dXFienlldGhrbmxnZ3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODU5MDYsImV4cCI6MjA4NDg2MTkwNn0.fW_XUljx6Ah4X4mcojv8DV2S5a4OCHc6vMbmuxWKdvE'
+
 const PROTECTED_PREFIXES = ['/agenda', '/compartilhar', '/configuracoes', '/convite']
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Só verificar autenticação em rotas de página protegidas
-  // APIs fazem sua própria autenticação via getUser() no handler
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
 
   if (!isProtected) {
@@ -17,8 +18,8 @@ export async function middleware(req: NextRequest) {
   let res = NextResponse.next()
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {
