@@ -309,7 +309,8 @@ export default function Copa2026Screen() {
     <View style={styles.container}>
       <FlatList
         data={jogosFiltrados}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => `${item.id}-${item.importado}`}
+        extraData={totalImportados}
         renderItem={renderJogo}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
