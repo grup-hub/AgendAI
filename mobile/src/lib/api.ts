@@ -69,8 +69,8 @@ export async function criarCompromisso(dados: {
 export async function atualizarCompromisso(dados: {
   ID_COMPROMISSO: string
   TITULO?: string
-  DESCRICAO?: string
-  LOCAL?: string
+  DESCRICAO?: string | null
+  LOCAL?: string | null
   DATA_INICIO?: string
   DATA_FIM?: string
   STATUS?: string
@@ -100,6 +100,101 @@ export async function deletarCompromisso(id: string) {
   if (!response.ok) {
     const data = await response.json()
     throw new Error(data.message || 'Erro ao deletar compromisso')
+  }
+
+  return response.json()
+}
+
+// ====== COMPARTILHAMENTOS ======
+
+export async function listarCompartilhamentos() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento`, { headers })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao buscar compartilhamentos')
+  }
+
+  return response.json()
+}
+
+export async function convidarCompartilhamento(email: string, permissao: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ email, permissao }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao enviar convite')
+  }
+
+  return response.json()
+}
+
+export async function responderCompartilhamento(id: string, status: 'ACEITO' | 'RECUSADO') {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ ID_COMPARTILHAMENTO: id, status }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao responder convite')
+  }
+
+  return response.json()
+}
+
+export async function removerCompartilhamento(id: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento?id=${id}`, {
+    method: 'DELETE',
+    headers,
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao remover compartilhamento')
+  }
+
+  return response.json()
+}
+
+// ====== CONFIGURAÇÕES ======
+
+export async function carregarConfiguracoes() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/configuracoes`, { headers })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao carregar configurações')
+  }
+
+  return response.json()
+}
+
+export async function salvarConfiguracoes(dados: {
+  nome: string
+  telefone: string
+  whatsappAtivado: boolean
+}) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/configuracoes`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(dados),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao salvar configurações')
   }
 
   return response.json()
