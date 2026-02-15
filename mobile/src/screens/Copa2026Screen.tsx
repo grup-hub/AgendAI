@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -39,12 +39,15 @@ export default function Copa2026Screen() {
   const [importando, setImportando] = useState(false)
   const [filtroGrupo, setFiltroGrupo] = useState<FiltroGrupo>('TODOS')
   const [totalImportados, setTotalImportados] = useState(0)
+  const lastFetch = useRef<number>(0)
 
-  const carregarJogos = async () => {
+  const carregarJogos = async (forceLoading = false) => {
+    if (forceLoading) setCarregando(true)
     try {
       const data = await listarJogosCopa()
       setJogos(data.jogos || [])
       setTotalImportados(data.totalImportados || 0)
+      lastFetch.current = Date.now()
       // Extrair grupos únicos
       const gruposUnicos = Array.from(new Set((data.jogos || []).map((j: Jogo) => j.grupo))).sort() as string[]
       setGrupos(gruposUnicos)
@@ -58,7 +61,14 @@ export default function Copa2026Screen() {
 
   useFocusEffect(
     useCallback(() => {
-      carregarJogos()
+      const isFirstLoad = jogos.length === 0
+      const isStale = Date.now() - lastFetch.current > 30000
+      if (isFirstLoad) {
+        setCarregando(true)
+        carregarJogos()
+      } else if (isStale) {
+        carregarJogos() // background refresh
+      }
     }, [])
   )
 

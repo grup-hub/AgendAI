@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -49,12 +49,15 @@ export default function AgendaScreen({ navigation }: any) {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   )
+  const lastFetch = useRef<number>(0)
 
-  const carregarCompromissos = async () => {
+  const carregarCompromissos = async (forceLoading = false) => {
+    if (forceLoading) setCarregando(true)
     try {
       const data = await listarCompromissos()
       const lista = data.compromissos || []
       setCompromissos(lista)
+      lastFetch.current = Date.now()
       // Agendar notificações locais para compromissos futuros
       agendarLembretesCompromissos(lista).catch(() => {})
     } catch (err) {
@@ -67,8 +70,14 @@ export default function AgendaScreen({ navigation }: any) {
 
   useFocusEffect(
     useCallback(() => {
-      setCarregando(true)
-      carregarCompromissos()
+      const isFirstLoad = compromissos.length === 0
+      const isStale = Date.now() - lastFetch.current > 30000 // 30s cache
+      if (isFirstLoad) {
+        setCarregando(true)
+        carregarCompromissos()
+      } else if (isStale) {
+        carregarCompromissos() // background refresh, sem loading
+      }
     }, [])
   )
 

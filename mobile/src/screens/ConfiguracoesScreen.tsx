@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -28,8 +28,11 @@ export default function ConfiguracoesScreen() {
 
   // WhatsApp
   const [whatsappAtivado, setWhatsappAtivado] = useState(false)
+  const lastFetch = useRef<number>(0)
+  const loaded = useRef(false)
 
-  const carregar = async () => {
+  const carregar = async (forceLoading = false) => {
+    if (forceLoading) setCarregando(true)
     try {
       const data = await carregarConfiguracoes()
       setNome(data.usuario.NOME || '')
@@ -37,8 +40,10 @@ export default function ConfiguracoesScreen() {
       setTelefone(data.usuario.TELEFONE || '')
       setPlano(data.usuario.PLANO || 'FREE')
       setWhatsappAtivado(data.whatsapp?.ativado || false)
+      lastFetch.current = Date.now()
+      loaded.current = true
     } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao carregar configurações')
+      if (!loaded.current) Alert.alert('Erro', err.message || 'Erro ao carregar configurações')
     } finally {
       setCarregando(false)
     }
@@ -46,8 +51,14 @@ export default function ConfiguracoesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setCarregando(true)
-      carregar()
+      const isFirstLoad = !loaded.current
+      const isStale = Date.now() - lastFetch.current > 30000
+      if (isFirstLoad) {
+        setCarregando(true)
+        carregar()
+      } else if (isStale) {
+        carregar() // background refresh
+      }
     }, [])
   )
 

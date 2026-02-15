@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -39,14 +39,19 @@ export default function CompartilhamentoScreen() {
   const [email, setEmail] = useState('')
   const [permissao, setPermissao] = useState<'VISUALIZAR' | 'EDITAR'>('VISUALIZAR')
   const [enviando, setEnviando] = useState(false)
+  const lastFetch = useRef<number>(0)
+  const loaded = useRef(false)
 
-  const carregar = async () => {
+  const carregar = async (forceLoading = false) => {
+    if (forceLoading) setCarregando(true)
     try {
       const data = await listarCompartilhamentos()
       setEnviados(data.enviados || [])
       setRecebidos(data.recebidos || [])
+      lastFetch.current = Date.now()
+      loaded.current = true
     } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao carregar')
+      if (!loaded.current) Alert.alert('Erro', err.message || 'Erro ao carregar')
     } finally {
       setCarregando(false)
       setRefreshing(false)
@@ -55,8 +60,14 @@ export default function CompartilhamentoScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setCarregando(true)
-      carregar()
+      const isFirstLoad = !loaded.current
+      const isStale = Date.now() - lastFetch.current > 30000
+      if (isFirstLoad) {
+        setCarregando(true)
+        carregar()
+      } else if (isStale) {
+        carregar() // background refresh
+      }
     }, [])
   )
 
