@@ -300,11 +300,11 @@ export default function Copa2026Page() {
             return (
               <div
                 key={jogo.id}
-                className={`rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer ${
+                className={`rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer border ${
                   jogo.importado
-                    ? 'bg-white ring-2 ring-blue-500'
-                    : 'bg-white'
-                } ${isBrasil ? 'ring-2 ring-emerald-400' : ''}`}
+                    ? 'bg-white border-blue-300 ring-2 ring-blue-500'
+                    : 'bg-white border-gray-200'
+                } ${isBrasil ? 'ring-2 ring-emerald-400 border-emerald-300' : ''}`}
                 onClick={() => handleToggleJogo(jogo)}
               >
                 {/* Header do card */}
