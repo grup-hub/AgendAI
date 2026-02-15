@@ -119,12 +119,18 @@ export default function AgendaPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Navegação */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex flex-wrap gap-4 mb-8">
           <Link
             href="/agenda/novo"
             className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium"
           >
             + Novo Compromisso
+          </Link>
+          <Link
+            href="/copa2026"
+            className="px-6 py-3 rounded-lg bg-slate-800 text-white hover:bg-slate-900 font-medium"
+          >
+            ⚽ Copa 2026
           </Link>
           <Link
             href="/compartilhar"

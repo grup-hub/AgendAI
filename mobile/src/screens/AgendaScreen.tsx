@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef } from 'react'
+import React, { useCallback, useState, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -50,14 +50,16 @@ export default function AgendaScreen({ navigation }: any) {
     new Date().toISOString().split('T')[0]
   )
   const lastFetch = useRef<number>(0)
+  const loaded = useRef(false)
 
-  const carregarCompromissos = async (forceLoading = false) => {
+  const carregarCompromissos = useCallback(async (forceLoading = false) => {
     if (forceLoading) setCarregando(true)
     try {
       const data = await listarCompromissos()
       const lista = data.compromissos || []
       setCompromissos(lista)
       lastFetch.current = Date.now()
+      loaded.current = true
       // Agendar notificações locais para compromissos futuros
       agendarLembretesCompromissos(lista).catch(() => {})
     } catch (err) {
@@ -66,19 +68,17 @@ export default function AgendaScreen({ navigation }: any) {
       setCarregando(false)
       setRefreshing(false)
     }
-  }
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
-      const isFirstLoad = compromissos.length === 0
-      const isStale = Date.now() - lastFetch.current > 30000 // 30s cache
-      if (isFirstLoad) {
+      if (!loaded.current) {
         setCarregando(true)
         carregarCompromissos()
-      } else if (isStale) {
-        carregarCompromissos() // background refresh, sem loading
+      } else if (Date.now() - lastFetch.current > 30000) {
+        carregarCompromissos() // background refresh sem loading
       }
-    }, [])
+    }, [carregarCompromissos])
   )
 
   const onRefresh = () => {
@@ -86,8 +86,8 @@ export default function AgendaScreen({ navigation }: any) {
     carregarCompromissos()
   }
 
-  // Agrupar datas para marcar no calendário
-  function getMarkedDates() {
+  // Agrupar datas para marcar no calendário (memoizado)
+  const markedDates = useMemo(() => {
     const marks: Record<string, any> = {}
 
     compromissos.forEach((c) => {
@@ -108,22 +108,26 @@ export default function AgendaScreen({ navigation }: any) {
     }
 
     return marks
-  }
+  }, [compromissos, selectedDate])
 
-  // Filtrar compromissos do dia selecionado
-  function getCompromissosDoDia() {
-    return compromissos.filter((c) => {
-      const dateKey = c.DATA_INICIO.split('T')[0]
-      return dateKey === selectedDate
-    })
-  }
+  // Filtrar compromissos do dia selecionado (memoizado)
+  const compromissosDoDia = useMemo(() =>
+    compromissos.filter((c) => c.DATA_INICIO.split('T')[0] === selectedDate),
+    [compromissos, selectedDate]
+  )
 
-  // Filtrar compromissos futuros para modo lista
-  function getCompromissosFuturos() {
+  // Filtrar compromissos futuros para modo lista (memoizado)
+  const compromissosFuturos = useMemo(() => {
     const hoje = new Date()
     hoje.setHours(0, 0, 0, 0)
     return compromissos.filter((c) => new Date(c.DATA_INICIO) >= hoje)
-  }
+  }, [compromissos])
+
+  // Callback estável para seleção de dia
+  const onDayPress = useCallback((day: any) => setSelectedDate(day.dateString), [])
+
+  // FlatList keyExtractor estável
+  const keyExtractorCompromisso = useCallback((item: Compromisso) => item.ID_COMPROMISSO, [])
 
   function formatarData(dataISO: string) {
     const data = new Date(dataISO)
@@ -170,7 +174,7 @@ export default function AgendaScreen({ navigation }: any) {
     }
   }
 
-  const renderCompromisso = ({ item }: { item: Compromisso }) => {
+  const renderCompromisso = useCallback(({ item }: { item: Compromisso }) => {
     const horario = formatarHorario(item.DATA_INICIO, item.DATA_FIM)
     const { data } = formatarData(item.DATA_INICIO)
 
@@ -224,9 +228,9 @@ export default function AgendaScreen({ navigation }: any) {
         </View>
       </TouchableOpacity>
     )
-  }
+  }, [viewMode, navigation])
 
-  const compromissosFiltrados = viewMode === 'calendar' ? getCompromissosDoDia() : getCompromissosFuturos()
+  const compromissosFiltrados = viewMode === 'calendar' ? compromissosDoDia : compromissosFuturos
 
   const dataSelecionadaFormatada = (() => {
     const [ano, mes, dia] = selectedDate.split('-')
@@ -278,8 +282,8 @@ export default function AgendaScreen({ navigation }: any) {
       {viewMode === 'calendar' && (
         <Calendar
           markingType="multi-dot"
-          markedDates={getMarkedDates()}
-          onDayPress={(day: any) => setSelectedDate(day.dateString)}
+          markedDates={markedDates}
+          onDayPress={onDayPress}
           theme={{
             backgroundColor: '#FFFFFF',
             calendarBackground: '#FFFFFF',
@@ -330,12 +334,16 @@ export default function AgendaScreen({ navigation }: any) {
       ) : (
         <FlatList
           data={compromissosFiltrados}
-          keyExtractor={(item) => item.ID_COMPROMISSO}
+          keyExtractor={keyExtractorCompromisso}
           renderItem={renderCompromisso}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} />
           }
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={true}
         />
       )}
 

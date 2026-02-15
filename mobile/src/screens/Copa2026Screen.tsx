@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import {
   View,
   Text,
@@ -40,14 +40,16 @@ export default function Copa2026Screen() {
   const [filtroGrupo, setFiltroGrupo] = useState<FiltroGrupo>('TODOS')
   const [totalImportados, setTotalImportados] = useState(0)
   const lastFetch = useRef<number>(0)
+  const loaded = useRef(false)
 
-  const carregarJogos = async (forceLoading = false) => {
+  const carregarJogos = useCallback(async (forceLoading = false) => {
     if (forceLoading) setCarregando(true)
     try {
       const data = await listarJogosCopa()
       setJogos(data.jogos || [])
       setTotalImportados(data.totalImportados || 0)
       lastFetch.current = Date.now()
+      loaded.current = true
       // Extrair grupos únicos
       const gruposUnicos = Array.from(new Set((data.jogos || []).map((j: Jogo) => j.grupo))).sort() as string[]
       setGrupos(gruposUnicos)
@@ -57,19 +59,17 @@ export default function Copa2026Screen() {
       setCarregando(false)
       setRefreshing(false)
     }
-  }
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
-      const isFirstLoad = jogos.length === 0
-      const isStale = Date.now() - lastFetch.current > 30000
-      if (isFirstLoad) {
+      if (!loaded.current) {
         setCarregando(true)
         carregarJogos()
-      } else if (isStale) {
-        carregarJogos() // background refresh
+      } else if (Date.now() - lastFetch.current > 30000) {
+        carregarJogos() // background refresh sem loading
       }
-    }, [])
+    }, [carregarJogos])
   )
 
   const handleImportarTodos = () => {
@@ -147,9 +147,15 @@ export default function Copa2026Screen() {
     }
   }
 
-  const jogosFiltrados = filtroGrupo === 'TODOS'
-    ? jogos
-    : jogos.filter(j => j.grupo === filtroGrupo)
+  const jogosFiltrados = useMemo(() =>
+    filtroGrupo === 'TODOS'
+      ? jogos
+      : jogos.filter(j => j.grupo === filtroGrupo),
+    [jogos, filtroGrupo]
+  )
+
+  // FlatList performance helpers (estáveis)
+  const keyExtractor = useCallback((item: Jogo) => `${item.id}-${item.importado}`, [])
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
@@ -250,7 +256,7 @@ export default function Copa2026Screen() {
     </View>
   )
 
-  const renderJogo = ({ item }: { item: Jogo }) => {
+  const renderJogo = useCallback(({ item }: { item: Jogo }) => {
     const { diaSemana, dia, mes, hora } = formatDate(item.date)
     const isBrasil = item.home === 'Brasil' || item.away === 'Brasil'
 
@@ -304,7 +310,15 @@ export default function Copa2026Screen() {
         </View>
       </TouchableOpacity>
     )
-  }
+  }, [importando])
+
+  const renderHeaderMemo = useMemo(() => renderHeader(), [insets.top, totalImportados, importando, grupos, filtroGrupo])
+
+  const emptyComponent = useMemo(() => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>Nenhum jogo encontrado</Text>
+    </View>
+  ), [])
 
   if (carregando) {
     return (
@@ -319,19 +333,19 @@ export default function Copa2026Screen() {
     <View style={styles.container}>
       <FlatList
         data={jogosFiltrados}
-        keyExtractor={(item) => `${item.id}-${item.importado}`}
+        keyExtractor={keyExtractor}
         extraData={totalImportados}
         renderItem={renderJogo}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={renderHeaderMemo}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); carregarJogos() }} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Nenhum jogo encontrado</Text>
-          </View>
-        }
+        ListEmptyComponent={emptyComponent}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={true}
       />
 
       {/* Overlay de loading */}
