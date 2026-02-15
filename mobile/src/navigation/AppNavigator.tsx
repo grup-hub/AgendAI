@@ -1,15 +1,101 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useAuth } from '../contexts/AuthContext'
-import { ActivityIndicator, View } from 'react-native'
+import { ActivityIndicator, View, Text } from 'react-native'
+import { registrarNotificacoes } from '../lib/notifications'
 
 import LoginScreen from '../screens/LoginScreen'
 import CadastroScreen from '../screens/CadastroScreen'
 import AgendaScreen from '../screens/AgendaScreen'
 import NovoCompromissoScreen from '../screens/NovoCompromissoScreen'
+import DetalhesCompromissoScreen from '../screens/DetalhesCompromissoScreen'
+import CompartilhamentoScreen from '../screens/CompartilhamentoScreen'
+import ConfiguracoesScreen from '../screens/ConfiguracoesScreen'
 
 const Stack = createNativeStackNavigator()
+const Tab = createBottomTabNavigator()
+
+const headerStyle = {
+  headerStyle: { backgroundColor: '#2563EB' },
+  headerTintColor: '#FFFFFF',
+  headerTitleStyle: { fontWeight: '600' as const },
+}
+
+function AgendaStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="AgendaHome"
+        component={AgendaScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NovoCompromisso"
+        component={NovoCompromissoScreen}
+        options={{ title: 'Novo Compromisso', ...headerStyle }}
+      />
+      <Stack.Screen
+        name="DetalhesCompromisso"
+        component={DetalhesCompromissoScreen}
+        options={{ title: 'Detalhes', ...headerStyle }}
+      />
+    </Stack.Navigator>
+  )
+}
+
+function TabIcon({ label, focused }: { label: string; focused: boolean }) {
+  const icons: Record<string, string> = {
+    'Agenda': '📅',
+    'Compartilhar': '👥',
+    'Configurações': '⚙️',
+  }
+  return (
+    <Text style={{ fontSize: focused ? 24 : 20 }}>
+      {icons[label] || '📋'}
+    </Text>
+  )
+}
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+        tabBarActiveTintColor: '#2563EB',
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#F3F4F6',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
+      })}
+    >
+      <Tab.Screen
+        name="Agenda"
+        component={AgendaStack}
+        options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name="Compartilhar"
+        component={CompartilhamentoScreen}
+        options={{ title: 'Compartilhar', ...headerStyle }}
+      />
+      <Tab.Screen
+        name="Configurações"
+        component={ConfiguracoesScreen}
+        options={{ title: 'Configurações', ...headerStyle }}
+      />
+    </Tab.Navigator>
+  )
+}
 
 function AuthStack() {
   return (
@@ -20,34 +106,19 @@ function AuthStack() {
   )
 }
 
-function AppStack() {
-  return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="Agenda"
-        component={AgendaScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="NovoCompromisso"
-        component={NovoCompromissoScreen}
-        options={{
-          title: 'Novo Compromisso',
-          headerStyle: { backgroundColor: '#2563EB' },
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { fontWeight: '600' },
-        }}
-      />
-    </Stack.Navigator>
-  )
-}
-
 export default function AppNavigator() {
   const { session, loading } = useAuth()
 
+  // Registrar notificações quando logado
+  useEffect(() => {
+    if (session) {
+      registrarNotificacoes()
+    }
+  }, [session])
+
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' }}>
         <ActivityIndicator size="large" color="#2563EB" />
       </View>
     )
@@ -55,7 +126,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      {session ? <AppStack /> : <AuthStack />}
+      {session ? <MainTabs /> : <AuthStack />}
     </NavigationContainer>
   )
 }

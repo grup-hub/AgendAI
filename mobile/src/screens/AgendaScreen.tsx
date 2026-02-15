@@ -11,7 +11,7 @@ import {
 import { Calendar, LocaleConfig } from 'react-native-calendars'
 import { useFocusEffect } from '@react-navigation/native'
 import { listarCompromissos } from '../lib/api'
-import { useAuth } from '../contexts/AuthContext'
+import { agendarLembretesCompromissos } from '../lib/notifications'
 
 // Configurar calendário em português
 LocaleConfig.locales['pt-br'] = {
@@ -42,7 +42,6 @@ interface Compromisso {
 type ViewMode = 'calendar' | 'list'
 
 export default function AgendaScreen({ navigation }: any) {
-  const { signOut } = useAuth()
   const [compromissos, setCompromissos] = useState<Compromisso[]>([])
   const [carregando, setCarregando] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -54,7 +53,10 @@ export default function AgendaScreen({ navigation }: any) {
   const carregarCompromissos = async () => {
     try {
       const data = await listarCompromissos()
-      setCompromissos(data.compromissos || [])
+      const lista = data.compromissos || []
+      setCompromissos(lista)
+      // Agendar notificações locais para compromissos futuros
+      agendarLembretesCompromissos(lista).catch(() => {})
     } catch (err) {
       console.error('Erro ao carregar compromissos:', err)
     } finally {
@@ -241,9 +243,6 @@ export default function AgendaScreen({ navigation }: any) {
           </Text>
           <Text style={styles.headerSub}>Seus compromissos</Text>
         </View>
-        <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Sair</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Toggle View */}
@@ -361,14 +360,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#FFFFFF' },
   headerAccent: { color: '#93C5FD' },
   headerSub: { fontSize: 13, color: '#BFDBFE', marginTop: 2 },
-  logoutBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  logoutText: { color: '#FFFFFF', fontSize: 13, fontWeight: '500' },
 
   // Toggle
   toggleContainer: {
