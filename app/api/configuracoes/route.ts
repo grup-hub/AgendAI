@@ -1,21 +1,39 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase/config'
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { normalizePhone, isValidWhatsAppPhone } from '@/lib/whatsapp/phone'
 
 export const dynamic = 'force-dynamic'
+
+// Helper: autenticar via cookie (web) ou Bearer token (mobile)
+async function getAuthenticatedUser(req: Request) {
+  const authHeader = req.headers.get('authorization')
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '')
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    )
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    return { user, error }
+  }
+
+  const supabase = await createSupabaseServerClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  return { user, error }
+}
 
 /**
  * GET - Buscar configurações do usuário
  */
 export async function GET(req: Request) {
-  const supabase = await createSupabaseServerClient()
   const supabaseAdmin = createSupabaseAdmin()
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
@@ -52,13 +70,9 @@ export async function GET(req: Request) {
  * PUT - Atualizar configurações do usuário
  */
 export async function PUT(req: Request) {
-  const supabase = await createSupabaseServerClient()
   const supabaseAdmin = createSupabaseAdmin()
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { user, error: authError } = await getAuthenticatedUser(req)
   if (!user || authError) {
     return NextResponse.json({ message: 'Não autorizado' }, { status: 401 })
   }
