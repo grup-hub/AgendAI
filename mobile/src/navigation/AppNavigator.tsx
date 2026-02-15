@@ -14,6 +14,7 @@ import NovoCompromissoScreen from '../screens/NovoCompromissoScreen'
 import DetalhesCompromissoScreen from '../screens/DetalhesCompromissoScreen'
 import CompartilhamentoScreen from '../screens/CompartilhamentoScreen'
 import ConfiguracoesScreen from '../screens/ConfiguracoesScreen'
+import Copa2026Screen from '../screens/Copa2026Screen'
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -49,6 +50,7 @@ function AgendaStack() {
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   const icons: Record<string, string> = {
     'Agenda': '📅',
+    'Copa 2026': '⚽',
     'Compartilhar': '👥',
     'Configurações': '⚙️',
   }
@@ -83,7 +85,7 @@ function MainTabs() {
           shadowRadius: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
         },
       })}
@@ -91,6 +93,11 @@ function MainTabs() {
       <Tab.Screen
         name="Agenda"
         component={AgendaStack}
+        options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name="Copa 2026"
+        component={Copa2026Screen}
         options={{ headerShown: false }}
       />
       <Tab.Screen

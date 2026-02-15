@@ -199,3 +199,36 @@ export async function salvarConfiguracoes(dados: {
 
   return response.json()
 }
+
+// ====== COPA DO MUNDO 2026 ======
+
+export async function listarJogosCopa() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/copa2026`, { headers })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao buscar jogos da Copa')
+  }
+
+  return response.json()
+}
+
+export async function importarJogosCopa(
+  acao: 'importar_todos' | 'importar_selecionados' | 'remover_todos' | 'remover_selecionados',
+  jogosIds?: number[]
+) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/copa2026`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ acao, jogosIds }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao importar jogos')
+  }
+
+  return response.json()
+}
