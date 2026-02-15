@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
+const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const SUPABASE_URL = (_url && _url.startsWith('http')) ? _url : 'https://wlmhtuqbzyethknlggwg.supabase.co'
+const SUPABASE_ANON_KEY = (_key && _key.startsWith('eyJ')) ? _key : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndsbWh0dXFienlldGhrbmxnZ3dnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyODU5MDYsImV4cCI6MjA4NDg2MTkwNn0.fW_XUljx6Ah4X4mcojv8DV2S5a4OCHc6vMbmuxWKdvE'
 
 const PROTECTED_PREFIXES = ['/agenda', '/compartilhar', '/configuracoes', '/convite']
 
