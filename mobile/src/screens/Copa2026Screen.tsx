@@ -75,7 +75,9 @@ export default function Copa2026Screen() {
             try {
               const result = await importarJogosCopa('importar_todos')
               Alert.alert('✅ Sucesso!', result.message)
-              carregarJogos()
+              // Atualizar estado local
+              setJogos(prev => prev.map(j => ({ ...j, importado: true })))
+              setTotalImportados(jogos.length)
             } catch (err: any) {
               Alert.alert('Erro', err.message)
             } finally {
@@ -101,7 +103,9 @@ export default function Copa2026Screen() {
             try {
               const result = await importarJogosCopa('remover_todos')
               Alert.alert('✅ Pronto!', result.message)
-              carregarJogos()
+              // Atualizar estado local
+              setJogos(prev => prev.map(j => ({ ...j, importado: false })))
+              setTotalImportados(0)
             } catch (err: any) {
               Alert.alert('Erro', err.message)
             } finally {
@@ -114,18 +118,22 @@ export default function Copa2026Screen() {
   }
 
   const handleToggleJogo = async (jogo: Jogo) => {
-    setImportando(true)
+    // Optimistic update — atualiza visual instantaneamente
+    const novoStatus = !jogo.importado
+    setJogos(prev => prev.map(j => j.id === jogo.id ? { ...j, importado: novoStatus } : j))
+    setTotalImportados(prev => novoStatus ? prev + 1 : prev - 1)
+
     try {
       if (jogo.importado) {
         await importarJogosCopa('remover_selecionados', [jogo.id])
       } else {
         await importarJogosCopa('importar_selecionados', [jogo.id])
       }
-      carregarJogos()
     } catch (err: any) {
+      // Reverter se deu erro
+      setJogos(prev => prev.map(j => j.id === jogo.id ? { ...j, importado: jogo.importado } : j))
+      setTotalImportados(prev => novoStatus ? prev - 1 : prev + 1)
       Alert.alert('Erro', err.message)
-    } finally {
-      setImportando(false)
     }
   }
 
