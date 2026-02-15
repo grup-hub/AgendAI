@@ -71,6 +71,9 @@ function MainTabs() {
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
         tabBarActiveTintColor: '#2563EB',
         tabBarInactiveTintColor: '#9CA3AF',
+        lazy: false,
+        unmountOnBlur: false,
+        freezeOnBlur: true,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#F3F4F6',
