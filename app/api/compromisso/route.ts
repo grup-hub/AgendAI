@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { createSupabaseAdmin } from '@/lib/supabase/admin'
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabase/config'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -14,8 +13,8 @@ async function getAuthenticatedUser(req: Request) {
     // Mobile: autenticação via token
     const token = authHeader.replace('Bearer ', '')
     const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY,
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { global: { headers: { Authorization: `Bearer ${token}` } } }
     )
     const { data: { user }, error } = await supabase.auth.getUser(token)
