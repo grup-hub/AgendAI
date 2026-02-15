@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   dayHeaderCount: { fontSize: 13, color: '#6B7280' },
 
   // List
-  list: { paddingHorizontal: 12, paddingBottom: 100 },
+  list: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 100 },
 
   // Card
   card: {
