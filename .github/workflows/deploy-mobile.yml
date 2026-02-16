@@ -1,0 +1,91 @@
+name: Build e Deploy APK → Firebase
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'mobile/**'
+
+jobs:
+  build-and-deploy:
+    name: Build APK e Upload Firebase
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout do código
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      # 3. Instalar dependências do mobile
+      - name: Instalar dependências
+        run: |
+          cd mobile
+          npm ci
+
+      # 4. Configurar Java (necessário para Gradle)
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 5. Gerar projeto Android com Expo Prebuild
+      - name: Expo Prebuild
+        run: |
+          cd mobile
+          npx expo prebuild --platform android --non-interactive
+
+      # 6. Configurar keystore para assinar o APK
+      - name: Configurar Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > mobile/android/app/agendai-release.keystore
+
+      # 7. Configurar local.properties do Android SDK
+      - name: Configurar Android SDK path
+        run: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > mobile/android/local.properties
+
+      # 8. Configurar signing no build.gradle
+      - name: Configurar assinatura release
+        run: |
+          cat >> mobile/android/app/build.gradle << 'EOF'
+
+          // Signing config injetado pelo CI
+          android.signingConfigs {
+            release {
+              storeFile file('agendai-release.keystore')
+              storePassword '${{ secrets.KEYSTORE_PASSWORD }}'
+              keyAlias 'agendai'
+              keyPassword '${{ secrets.KEYSTORE_PASSWORD }}'
+            }
+          }
+          android.buildTypes.release.signingConfig = android.signingConfigs.release
+          EOF
+
+      # 9. Build do APK
+      - name: Build APK Release
+        run: |
+          cd mobile/android
+          ./gradlew assembleRelease --no-daemon
+
+      # 10. Upload para Firebase App Distribution
+      - name: Upload para Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          groups: testers
+          file: mobile/android/app/build/outputs/apk/release/app-release.apk
+          releaseNotes: |
+            🚀 Nova versão automática!
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}
