@@ -204,8 +204,28 @@ const JOGOS_COPA_2026: any[] = [
   { grupo: 'L', rodada: 3, date: '2026-06-27T21:00:00Z', home: 'Croácia', away: 'Gana', city: 'Filadélfia', stadium: 'Lincoln Financial Field' },
 ]
 
-// Códigos ISO-2 para flagcdn.com (ex: 'br' → https://flagcdn.com/br.svg)
+// Bandeiras emoji (usadas pelo app mobile)
 const BANDEIRAS: Record<string, string> = {
+  'México': '🇲🇽', 'África do Sul': '🇿🇦', 'Coreia do Sul': '🇰🇷',
+  'Canadá': '🇨🇦', 'Qatar': '🇶🇦', 'Suíça': '🇨🇭',
+  'Brasil': '🇧🇷', 'Marrocos': '🇲🇦', 'Haiti': '🇭🇹', 'Escócia': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'Estados Unidos': '🇺🇸', 'Paraguai': '🇵🇾', 'Austrália': '🇦🇺',
+  'Alemanha': '🇩🇪', 'Curaçao': '🇨🇼', 'Costa do Marfim': '🇨🇮', 'Equador': '🇪🇨',
+  'Holanda': '🇳🇱', 'Japão': '🇯🇵', 'Tunísia': '🇹🇳',
+  'Bélgica': '🇧🇪', 'Egito': '🇪🇬', 'Irã': '🇮🇷', 'Nova Zelândia': '🇳🇿',
+  'Espanha': '🇪🇸', 'Cabo Verde': '🇨🇻', 'Arábia Saudita': '🇸🇦', 'Uruguai': '🇺🇾',
+  'França': '🇫🇷', 'Senegal': '🇸🇳', 'Noruega': '🇳🇴',
+  'Argentina': '🇦🇷', 'Argélia': '🇩🇿', 'Áustria': '🇦🇹', 'Jordânia': '🇯🇴',
+  'Portugal': '🇵🇹', 'Uzbequistão': '🇺🇿', 'Colômbia': '🇨🇴',
+  'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croácia': '🇭🇷', 'Gana': '🇬🇭', 'Panamá': '🇵🇦',
+  // Vagas a definir (playoffs/repescagem)
+  'A definir (Europa A)': '❓', 'A definir (Europa B)': '❓',
+  'A definir (Europa C)': '❓', 'A definir (Europa D)': '❓',
+  'A definir (Interc. 1)': '❓', 'A definir (Interc. 2)': '❓',
+}
+
+// Mapa país → código ISO-2 para flagcdn.com (usado só no web)
+const FLAG_ISO: Record<string, string> = {
   'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr',
   'Canadá': 'ca', 'Qatar': 'qa', 'Suíça': 'ch',
   'Brasil': 'br', 'Marrocos': 'ma', 'Haiti': 'ht', 'Escócia': 'gb-sct',
@@ -218,10 +238,6 @@ const BANDEIRAS: Record<string, string> = {
   'Argentina': 'ar', 'Argélia': 'dz', 'Áustria': 'at', 'Jordânia': 'jo',
   'Portugal': 'pt', 'Uzbequistão': 'uz', 'Colômbia': 'co',
   'Inglaterra': 'gb-eng', 'Croácia': 'hr', 'Gana': 'gh', 'Panamá': 'pa',
-  // Vagas a definir
-  'A definir (Europa A)': '', 'A definir (Europa B)': '',
-  'A definir (Europa C)': '', 'A definir (Europa D)': '',
-  'A definir (Interc. 1)': '', 'A definir (Interc. 2)': '',
 }
 
 // Nomes curtos para times "A definir" (exibição mais limpa nos cards)
@@ -312,6 +328,8 @@ export async function GET(req: Request) {
       awayOriginal: jogo.away,
       homeBandeira: BANDEIRAS[jogo.home] || '🏳️',
       awayBandeira: BANDEIRAS[jogo.away] || '🏳️',
+      homeFlagIso: FLAG_ISO[jogo.home] || null,
+      awayFlagIso: FLAG_ISO[jogo.away] || null,
       homeADefinir: isADefinir(jogo.home),
       awayADefinir: isADefinir(jogo.away),
       date: jogo.date,

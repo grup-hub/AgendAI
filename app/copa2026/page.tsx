@@ -14,6 +14,8 @@ interface Jogo {
   awayOriginal: string
   homeBandeira: string
   awayBandeira: string
+  homeFlagIso: string | null
+  awayFlagIso: string | null
   homeADefinir: boolean
   awayADefinir: boolean
   date: string
@@ -335,10 +337,10 @@ export default function Copa2026Page() {
                   <div className="px-4 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        {jogo.homeBandeira ? (
-                          <img src={`https://flagcdn.com/40x30/${jogo.homeBandeira}.png`} alt={jogo.home} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+                        {jogo.homeFlagIso ? (
+                          <img src={`https://flagcdn.com/40x30/${jogo.homeFlagIso}.png`} alt={jogo.home} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
                         ) : (
-                          <span className="text-xl">❓</span>
+                          <span className="text-xl">{jogo.homeBandeira}</span>
                         )}
                         <span className={`font-semibold ${
                           isBrasil && jogo.home === 'Brasil'
@@ -379,10 +381,10 @@ export default function Copa2026Page() {
                         }`}>
                           {jogo.away}
                         </span>
-                        {jogo.awayBandeira ? (
-                          <img src={`https://flagcdn.com/40x30/${jogo.awayBandeira}.png`} alt={jogo.away} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+                        {jogo.awayFlagIso ? (
+                          <img src={`https://flagcdn.com/40x30/${jogo.awayFlagIso}.png`} alt={jogo.away} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
                         ) : (
-                          <span className="text-xl">❓</span>
+                          <span className="text-xl">{jogo.awayBandeira}</span>
                         )}
                       </div>
                     </div>
@@ -447,10 +449,10 @@ export default function Copa2026Page() {
                 </p>
                 <div className="flex items-center justify-center gap-6 my-4">
                   <div className="text-center">
-                    {jogoSelecionado.homeBandeira ? (
-                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.homeBandeira}.png`} alt={jogoSelecionado.home} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
+                    {jogoSelecionado.homeFlagIso ? (
+                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.homeFlagIso}.png`} alt={jogoSelecionado.home} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
                     ) : (
-                      <span className="text-4xl block mb-2">❓</span>
+                      <span className="text-4xl block mb-2">{jogoSelecionado.homeBandeira}</span>
                     )}
                     <span className={`font-bold text-white text-lg ${
                       isBrasil && jogoSelecionado.home === 'Brasil'
@@ -479,10 +481,10 @@ export default function Copa2026Page() {
                     <span className="text-3xl font-bold text-gray-400">×</span>
                   )}
                   <div className="text-center">
-                    {jogoSelecionado.awayBandeira ? (
-                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.awayBandeira}.png`} alt={jogoSelecionado.away} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
+                    {jogoSelecionado.awayFlagIso ? (
+                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.awayFlagIso}.png`} alt={jogoSelecionado.away} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
                     ) : (
-                      <span className="text-4xl block mb-2">❓</span>
+                      <span className="text-4xl block mb-2">{jogoSelecionado.awayBandeira}</span>
                     )}
                     <span className={`font-bold text-white text-lg ${
                       isBrasil && jogoSelecionado.away === 'Brasil'
