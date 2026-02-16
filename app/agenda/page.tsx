@@ -411,9 +411,10 @@ export default function AgendaPage() {
                     : null
 
                   return (
-                    <div
+                    <Link
                       key={comp.ID_COMPROMISSO}
-                      className={`rounded-xl shadow-sm overflow-hidden flex transition hover:shadow-md ${
+                      href={`/agenda/${comp.ID_COMPROMISSO}`}
+                      className={`rounded-xl shadow-sm overflow-hidden flex transition hover:shadow-md cursor-pointer ${
                         comp.compartilhado ? 'bg-purple-50 border border-purple-100' : 'bg-white'
                       }`}
                     >
@@ -464,28 +465,11 @@ export default function AgendaPage() {
                             </div>
                           </div>
 
-                          {/* Ações */}
-                          <div className="flex gap-2 flex-shrink-0">
-                            {(!comp.compartilhado || comp.permissao === 'EDITAR') && (
-                              <Link
-                                href={`/agenda/${comp.ID_COMPROMISSO}`}
-                                className="px-3 py-1.5 rounded-lg text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium"
-                              >
-                                Editar
-                              </Link>
-                            )}
-                            {!comp.compartilhado && !isCopa && (
-                              <button
-                                onClick={() => handleDelete(comp.ID_COMPROMISSO)}
-                                className="px-3 py-1.5 rounded-lg text-xs bg-red-50 text-red-700 hover:bg-red-100 font-medium"
-                              >
-                                Deletar
-                              </button>
-                            )}
-                          </div>
+                          {/* Seta indicando que é clicável */}
+                          <div className="flex-shrink-0 text-gray-300 self-center text-lg">›</div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   )
                 })}
               </div>
