@@ -204,24 +204,24 @@ const JOGOS_COPA_2026: any[] = [
   { grupo: 'L', rodada: 3, date: '2026-06-27T21:00:00Z', home: 'Croácia', away: 'Gana', city: 'Filadélfia', stadium: 'Lincoln Financial Field' },
 ]
 
-// Bandeiras emoji
+// Códigos ISO-2 para flagcdn.com (ex: 'br' → https://flagcdn.com/br.svg)
 const BANDEIRAS: Record<string, string> = {
-  'México': '🇲🇽', 'África do Sul': '🇿🇦', 'Coreia do Sul': '🇰🇷',
-  'Canadá': '🇨🇦', 'Qatar': '🇶🇦', 'Suíça': '🇨🇭',
-  'Brasil': '🇧🇷', 'Marrocos': '🇲🇦', 'Haiti': '🇭🇹', 'Escócia': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  'Estados Unidos': '🇺🇸', 'Paraguai': '🇵🇾', 'Austrália': '🇦🇺',
-  'Alemanha': '🇩🇪', 'Curaçao': '🇨🇼', 'Costa do Marfim': '🇨🇮', 'Equador': '🇪🇨',
-  'Holanda': '🇳🇱', 'Japão': '🇯🇵', 'Tunísia': '🇹🇳',
-  'Bélgica': '🇧🇪', 'Egito': '🇪🇬', 'Irã': '🇮🇷', 'Nova Zelândia': '🇳🇿',
-  'Espanha': '🇪🇸', 'Cabo Verde': '🇨🇻', 'Arábia Saudita': '🇸🇦', 'Uruguai': '🇺🇾',
-  'França': '🇫🇷', 'Senegal': '🇸🇳', 'Noruega': '🇳🇴',
-  'Argentina': '🇦🇷', 'Argélia': '🇩🇿', 'Áustria': '🇦🇹', 'Jordânia': '🇯🇴',
-  'Portugal': '🇵🇹', 'Uzbequistão': '🇺🇿', 'Colômbia': '🇨🇴',
-  'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croácia': '🇭🇷', 'Gana': '🇬🇭', 'Panamá': '🇵🇦',
-  // Vagas a definir (playoffs/repescagem)
-  'A definir (Europa A)': '❓', 'A definir (Europa B)': '❓',
-  'A definir (Europa C)': '❓', 'A definir (Europa D)': '❓',
-  'A definir (Interc. 1)': '❓', 'A definir (Interc. 2)': '❓',
+  'México': 'mx', 'África do Sul': 'za', 'Coreia do Sul': 'kr',
+  'Canadá': 'ca', 'Qatar': 'qa', 'Suíça': 'ch',
+  'Brasil': 'br', 'Marrocos': 'ma', 'Haiti': 'ht', 'Escócia': 'gb-sct',
+  'Estados Unidos': 'us', 'Paraguai': 'py', 'Austrália': 'au',
+  'Alemanha': 'de', 'Curaçao': 'cw', 'Costa do Marfim': 'ci', 'Equador': 'ec',
+  'Holanda': 'nl', 'Japão': 'jp', 'Tunísia': 'tn',
+  'Bélgica': 'be', 'Egito': 'eg', 'Irã': 'ir', 'Nova Zelândia': 'nz',
+  'Espanha': 'es', 'Cabo Verde': 'cv', 'Arábia Saudita': 'sa', 'Uruguai': 'uy',
+  'França': 'fr', 'Senegal': 'sn', 'Noruega': 'no',
+  'Argentina': 'ar', 'Argélia': 'dz', 'Áustria': 'at', 'Jordânia': 'jo',
+  'Portugal': 'pt', 'Uzbequistão': 'uz', 'Colômbia': 'co',
+  'Inglaterra': 'gb-eng', 'Croácia': 'hr', 'Gana': 'gh', 'Panamá': 'pa',
+  // Vagas a definir
+  'A definir (Europa A)': '', 'A definir (Europa B)': '',
+  'A definir (Europa C)': '', 'A definir (Europa D)': '',
+  'A definir (Interc. 1)': '', 'A definir (Interc. 2)': '',
 }
 
 // Nomes curtos para times "A definir" (exibição mais limpa nos cards)

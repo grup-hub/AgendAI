@@ -335,7 +335,11 @@ export default function Copa2026Page() {
                   <div className="px-4 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <span className="text-2xl">{jogo.homeBandeira}</span>
+                        {jogo.homeBandeira ? (
+                          <img src={`https://flagcdn.com/40x30/${jogo.homeBandeira}.png`} alt={jogo.home} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+                        ) : (
+                          <span className="text-xl">❓</span>
+                        )}
                         <span className={`font-semibold ${
                           isBrasil && jogo.home === 'Brasil'
                             ? 'text-emerald-600 font-bold'
@@ -375,7 +379,11 @@ export default function Copa2026Page() {
                         }`}>
                           {jogo.away}
                         </span>
-                        <span className="text-2xl">{jogo.awayBandeira}</span>
+                        {jogo.awayBandeira ? (
+                          <img src={`https://flagcdn.com/40x30/${jogo.awayBandeira}.png`} alt={jogo.away} className="w-8 h-6 object-cover rounded-sm shadow-sm" />
+                        ) : (
+                          <span className="text-xl">❓</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -439,7 +447,11 @@ export default function Copa2026Page() {
                 </p>
                 <div className="flex items-center justify-center gap-6 my-4">
                   <div className="text-center">
-                    <span className="text-4xl block mb-1">{jogoSelecionado.homeBandeira}</span>
+                    {jogoSelecionado.homeBandeira ? (
+                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.homeBandeira}.png`} alt={jogoSelecionado.home} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
+                    ) : (
+                      <span className="text-4xl block mb-2">❓</span>
+                    )}
                     <span className={`font-bold text-white text-lg ${
                       isBrasil && jogoSelecionado.home === 'Brasil'
                         ? 'text-emerald-300'
@@ -467,7 +479,11 @@ export default function Copa2026Page() {
                     <span className="text-3xl font-bold text-gray-400">×</span>
                   )}
                   <div className="text-center">
-                    <span className="text-4xl block mb-1">{jogoSelecionado.awayBandeira}</span>
+                    {jogoSelecionado.awayBandeira ? (
+                      <img src={`https://flagcdn.com/80x60/${jogoSelecionado.awayBandeira}.png`} alt={jogoSelecionado.away} className="w-16 h-12 object-cover rounded shadow mx-auto mb-2" />
+                    ) : (
+                      <span className="text-4xl block mb-2">❓</span>
+                    )}
                     <span className={`font-bold text-white text-lg ${
                       isBrasil && jogoSelecionado.away === 'Brasil'
                         ? 'text-emerald-300'
