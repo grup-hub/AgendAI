@@ -17,12 +17,23 @@ interface Compartilhamento {
   dono?: { NOME: string; EMAIL: string }
 }
 
+interface CompCompromisso {
+  ID: string
+  STATUS: string
+  DATA_COMPARTILHAMENTO: string
+  remetente?: { NOME: string; EMAIL: string }
+  destinatario?: { NOME: string; EMAIL: string }
+  compromisso?: { TITULO: string; DATA_INICIO: string; LOCAL?: string }
+}
+
 export default function CompartilharPage() {
   const router = useRouter()
   const supabase = useMemo(() => createSupabaseBrowserClient(), [])
 
   const [enviados, setEnviados] = useState<Compartilhamento[]>([])
   const [recebidos, setRecebidos] = useState<Compartilhamento[]>([])
+  const [compEnviados, setCompEnviados] = useState<CompCompromisso[]>([])
+  const [compRecebidos, setCompRecebidos] = useState<CompCompromisso[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
@@ -49,6 +60,17 @@ export default function CompartilharPage() {
     const data = await response.json()
     setEnviados(data.enviados || [])
     setRecebidos(data.recebidos || [])
+
+    // Carregar compartilhamentos de compromisso
+    try {
+      const compResp = await fetch('/api/compartilhamento-compromisso')
+      if (compResp.ok) {
+        const compData = await compResp.json()
+        setCompEnviados(compData.enviados || [])
+        setCompRecebidos(compData.recebidos || [])
+      }
+    } catch {}
+
     setCarregando(false)
   }
 
@@ -101,6 +123,27 @@ export default function CompartilharPage() {
     }
 
     setSucesso(status === 'ACEITO' ? 'Convite aceito!' : 'Convite recusado.')
+    carregarDados()
+  }
+
+  async function handleResponderCompromisso(id: string, status: 'ACEITO' | 'RECUSADO') {
+    setErro('')
+    setSucesso('')
+
+    const response = await fetch('/api/compartilhamento-compromisso', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      setErro(data.message || 'Erro ao responder convite')
+      return
+    }
+
+    setSucesso(status === 'ACEITO' ? 'Compromisso adicionado à sua agenda!' : 'Convite recusado.')
     carregarDados()
   }
 
@@ -214,12 +257,64 @@ export default function CompartilharPage() {
         {/* Convites recebidos */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Convites recebidos</h3>
-          {recebidos.length === 0 ? (
+          {recebidos.length === 0 && compRecebidos.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
               Nenhum convite recebido
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Convites de compromisso (📌) */}
+              {compRecebidos.map((r) => {
+                const st = statusLabel(r.STATUS)
+                const dataFormatada = r.compromisso?.DATA_INICIO
+                  ? new Date(r.compromisso.DATA_INICIO).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+                  : ''
+                return (
+                  <div
+                    key={`comp-${r.ID}`}
+                    className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 border-purple-500"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">📌</span>
+                        <p className="font-medium text-gray-900">{r.compromisso?.TITULO || 'Compromisso'}</p>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        De: {r.remetente?.NOME || r.remetente?.EMAIL || 'Usuário'}
+                      </p>
+                      {dataFormatada && (
+                        <p className="text-xs text-gray-400">📅 {dataFormatada}</p>
+                      )}
+                      {r.compromisso?.LOCAL && (
+                        <p className="text-xs text-gray-400">📍 {r.compromisso.LOCAL}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${st.cls}`}>
+                        {st.text}
+                      </span>
+                      {r.STATUS === 'PENDENTE' && (
+                        <>
+                          <button
+                            onClick={() => handleResponderCompromisso(r.ID, 'ACEITO')}
+                            className="px-3 py-1 rounded text-sm bg-green-600 text-white hover:bg-green-700"
+                          >
+                            Aceitar
+                          </button>
+                          <button
+                            onClick={() => handleResponderCompromisso(r.ID, 'RECUSADO')}
+                            className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                          >
+                            Recusar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Convites de agenda (📅) */}
               {recebidos.map((r) => {
                 const st = statusLabel(r.STATUS)
                 return (
@@ -228,9 +323,12 @@ export default function CompartilharPage() {
                     className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {r.dono?.NOME || r.dono?.EMAIL || 'Usuário'}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">📅</span>
+                        <p className="font-medium text-gray-900">
+                          {r.dono?.NOME || r.dono?.EMAIL || 'Usuário'}
+                        </p>
+                      </div>
                       <p className="text-sm text-gray-500">
                         Agenda: {r.agenda?.NOME || 'Agenda'} | Permissão:{' '}
                         {r.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
@@ -278,12 +376,42 @@ export default function CompartilharPage() {
         {/* Convites enviados */}
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-4">Convites enviados</h3>
-          {enviados.length === 0 ? (
+          {enviados.length === 0 && compEnviados.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
               Nenhum convite enviado
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Compromissos enviados (📌) */}
+              {compEnviados.map((e) => {
+                const st = statusLabel(e.STATUS)
+                return (
+                  <div
+                    key={`comp-${e.ID}`}
+                    className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 border-purple-500"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">📌</span>
+                        <p className="font-medium text-gray-900">{e.compromisso?.TITULO || 'Compromisso'}</p>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Para: {e.destinatario?.NOME || e.destinatario?.EMAIL || 'Usuário'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Enviado em {new Date(e.DATA_COMPARTILHAMENTO).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${st.cls}`}>
+                        {st.text}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Agendas enviadas (📅) */}
               {enviados.map((e) => {
                 const st = statusLabel(e.STATUS)
                 return (
@@ -292,9 +420,12 @@ export default function CompartilharPage() {
                     className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {e.convidado?.NOME || e.convidado?.EMAIL || 'Usuário'}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm">📅</span>
+                        <p className="font-medium text-gray-900">
+                          {e.convidado?.NOME || e.convidado?.EMAIL || 'Usuário'}
+                        </p>
+                      </div>
                       <p className="text-sm text-gray-500">
                         {e.convidado?.EMAIL} | Permissão:{' '}
                         {e.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}

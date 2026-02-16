@@ -36,6 +36,14 @@ export default function EditarCompromissoPage() {
   const [erro, setErro] = useState('')
   const [isCopa2026, setIsCopa2026] = useState(false)
 
+  // Compartilhamento
+  const [copiado, setCopiado] = useState(false)
+  const [mostrarShareInterno, setMostrarShareInterno] = useState(false)
+  const [emailShare, setEmailShare] = useState('')
+  const [compartilhando, setCompartilhando] = useState(false)
+  const [shareMsg, setShareMsg] = useState('')
+  const [shareMsgTipo, setShareMsgTipo] = useState<'sucesso' | 'erro'>('sucesso')
+
   useEffect(() => {
     async function carregar() {
       // Buscar compromisso (middleware já protege a rota)
@@ -118,6 +126,108 @@ export default function EditarCompromissoPage() {
     }
 
     router.push('/agenda')
+  }
+
+  // ====== COMPARTILHAMENTO ======
+
+  function formatarCompromissoParaCompartilhar() {
+    if (!compromisso) return ''
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+    const inicio = new Date(compromisso.DATA_INICIO)
+    const dia = diasSemana[inicio.getDay()]
+    const numDia = inicio.getDate()
+    const mes = meses[inicio.getMonth()]
+    const h1 = inicio.getHours().toString().padStart(2, '0')
+    const m1 = inicio.getMinutes().toString().padStart(2, '0')
+
+    let horario = `${h1}:${m1}`
+    if (compromisso.DATA_FIM) {
+      const fim = new Date(compromisso.DATA_FIM)
+      const h2 = fim.getHours().toString().padStart(2, '0')
+      const m2 = fim.getMinutes().toString().padStart(2, '0')
+      if (`${h1}:${m1}` !== `${h2}:${m2}`) {
+        horario = `${h1}:${m1} - ${h2}:${m2}`
+      }
+    }
+
+    const emoji = compromisso.ORIGEM === 'COPA2026' ? '⚽' : '📋'
+
+    let texto = `${emoji} *${compromisso.TITULO}*\n`
+    texto += `📅 ${dia}, ${numDia} ${mes} • ${horario}\n`
+
+    if (local) {
+      texto += `📍 ${local}\n`
+    }
+
+    if (descricao) {
+      texto += `📝 ${descricao}\n`
+    }
+
+    texto += `\n_Compartilhado via AgendAI_ ✨`
+
+    return texto
+  }
+
+  async function handleCopiarDetalhes() {
+    const texto = formatarCompromissoParaCompartilhar()
+
+    // Tenta Web Share API primeiro (funciona em mobile browsers)
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ text: texto })
+        return
+      } catch {
+        // Usuário cancelou ou não suportado, usa clipboard
+      }
+    }
+
+    // Fallback: clipboard
+    try {
+      await navigator.clipboard.writeText(texto)
+    } catch {
+      // Fallback final para browsers antigos
+      const textarea = document.createElement('textarea')
+      textarea.value = texto
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+    }
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2500)
+  }
+
+  async function handleShareInterno(e: React.FormEvent) {
+    e.preventDefault()
+    if (!emailShare.trim()) return
+
+    setCompartilhando(true)
+    setShareMsg('')
+
+    try {
+      const response = await fetch('/api/compartilhamento-compromisso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_compromisso: idCompromisso, email: emailShare.trim() }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setShareMsg(data.message || 'Erro ao compartilhar')
+        setShareMsgTipo('erro')
+      } else {
+        setShareMsg(data.message || 'Compromisso compartilhado com sucesso!')
+        setShareMsgTipo('sucesso')
+        setEmailShare('')
+      }
+    } catch (err: any) {
+      setShareMsg(err.message || 'Erro ao compartilhar')
+      setShareMsgTipo('erro')
+    } finally {
+      setCompartilhando(false)
+    }
   }
 
   if (carregando) {
@@ -262,6 +372,67 @@ export default function EditarCompromissoPage() {
                 <option value="CANCELADO">Cancelado</option>
                 <option value="CONCLUIDO">Concluído</option>
               </select>
+            </div>
+
+            {/* Compartilhar */}
+            <div className="border-t border-gray-200 pt-6 mt-2">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                📤 Compartilhar
+              </h3>
+
+              <button
+                type="button"
+                onClick={handleCopiarDetalhes}
+                className={`w-full mb-3 px-4 py-3 rounded-lg font-medium text-sm transition flex items-center justify-center gap-2 ${
+                  copiado
+                    ? 'bg-green-50 text-green-700 border border-green-200'
+                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100'
+                }`}
+              >
+                {copiado ? '✅ Copiado para a área de transferência!' : '💬 Copiar detalhes para compartilhar'}
+              </button>
+
+              {!isCopa2026 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarShareInterno(!mostrarShareInterno)}
+                    className="w-full mb-3 px-4 py-3 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100 font-medium text-sm transition flex items-center justify-center gap-2"
+                  >
+                    👥 Compartilhar com usuário AgendAI
+                  </button>
+
+                  {mostrarShareInterno && (
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-3">
+                      <p className="text-sm text-gray-600 mb-3">
+                        O usuário receberá uma cópia deste compromisso na agenda dele
+                      </p>
+                      <form onSubmit={handleShareInterno} className="flex gap-2">
+                        <input
+                          type="email"
+                          placeholder="Email do usuário"
+                          value={emailShare}
+                          onChange={(e) => setEmailShare(e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={compartilhando}
+                          className="px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition"
+                        >
+                          {compartilhando ? 'Enviando...' : 'Enviar'}
+                        </button>
+                      </form>
+                      {shareMsg && (
+                        <p className={`text-sm mt-3 ${shareMsgTipo === 'erro' ? 'text-red-600' : 'text-green-600'}`}>
+                          {shareMsgTipo === 'sucesso' ? '✅' : '❌'} {shareMsg}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Botões */}

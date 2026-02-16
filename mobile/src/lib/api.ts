@@ -166,6 +166,52 @@ export async function removerCompartilhamento(id: string) {
   return response.json()
 }
 
+// ====== COMPARTILHAMENTO DE COMPROMISSO ======
+
+export async function compartilharCompromisso(idCompromisso: string, email: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento-compromisso`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ id_compromisso: idCompromisso, email }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao compartilhar compromisso')
+  }
+
+  return response.json()
+}
+
+export async function listarCompartilhamentosCompromisso() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento-compromisso`, { headers })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao buscar compartilhamentos de compromisso')
+  }
+
+  return response.json()
+}
+
+export async function responderCompartilhamentoCompromisso(id: string, status: 'ACEITO' | 'RECUSADO') {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento-compromisso`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ id, status }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao responder compartilhamento')
+  }
+
+  return response.json()
+}
+
 // ====== CONFIGURAÇÕES ======
 
 export async function carregarConfiguracoes() {

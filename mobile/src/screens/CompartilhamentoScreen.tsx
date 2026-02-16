@@ -16,6 +16,8 @@ import {
   convidarCompartilhamento,
   responderCompartilhamento,
   removerCompartilhamento,
+  listarCompartilhamentosCompromisso,
+  responderCompartilhamentoCompromisso,
 } from '../lib/api'
 
 interface Compartilhamento {
@@ -29,9 +31,21 @@ interface Compartilhamento {
   dono?: { NOME: string; EMAIL: string }
 }
 
+interface CompartilhamentoCompromisso {
+  ID: string
+  ID_COMPROMISSO_ORIGEM: string
+  STATUS: string
+  DATA_COMPARTILHAMENTO: string
+  remetente?: { NOME: string; EMAIL: string }
+  destinatario?: { NOME: string; EMAIL: string }
+  compromisso?: { TITULO: string; DATA_INICIO: string; DATA_FIM?: string; LOCAL?: string }
+}
+
 export default function CompartilhamentoScreen() {
   const [enviados, setEnviados] = useState<Compartilhamento[]>([])
   const [recebidos, setRecebidos] = useState<Compartilhamento[]>([])
+  const [compEnviados, setCompEnviados] = useState<CompartilhamentoCompromisso[]>([])
+  const [compRecebidos, setCompRecebidos] = useState<CompartilhamentoCompromisso[]>([])
   const [carregando, setCarregando] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -45,9 +59,14 @@ export default function CompartilhamentoScreen() {
   const carregar = async (forceLoading = false) => {
     if (forceLoading) setCarregando(true)
     try {
-      const data = await listarCompartilhamentos()
-      setEnviados(data.enviados || [])
-      setRecebidos(data.recebidos || [])
+      const [dataAgenda, dataComp] = await Promise.all([
+        listarCompartilhamentos(),
+        listarCompartilhamentosCompromisso().catch(() => ({ enviados: [], recebidos: [] })),
+      ])
+      setEnviados(dataAgenda.enviados || [])
+      setRecebidos(dataAgenda.recebidos || [])
+      setCompEnviados(dataComp.enviados || [])
+      setCompRecebidos(dataComp.recebidos || [])
       lastFetch.current = Date.now()
       loaded.current = true
     } catch (err: any) {
@@ -100,6 +119,16 @@ export default function CompartilhamentoScreen() {
     }
   }
 
+  async function handleResponderCompromisso(id: string, status: 'ACEITO' | 'RECUSADO') {
+    try {
+      await responderCompartilhamentoCompromisso(id, status)
+      Alert.alert('Sucesso', status === 'ACEITO' ? 'Compromisso adicionado à sua agenda!' : 'Convite recusado.')
+      carregar()
+    } catch (err: any) {
+      Alert.alert('Erro', err.message)
+    }
+  }
+
   async function handleRemover(id: string) {
     Alert.alert('Remover', 'Tem certeza que deseja remover este compartilhamento?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -139,11 +168,17 @@ export default function CompartilhamentoScreen() {
   const sections = [
     { type: 'form' as const },
     { type: 'recebidosHeader' as const },
+    // Convites de compromisso recebidos (badge 📌)
+    ...compRecebidos.map((r) => ({ type: 'compRecebido' as const, compData: r })),
+    // Convites de agenda recebidos (badge 📅)
     ...recebidos.map((r) => ({ type: 'recebido' as const, data: r })),
-    ...(recebidos.length === 0 ? [{ type: 'recebidosEmpty' as const }] : []),
+    ...(recebidos.length === 0 && compRecebidos.length === 0 ? [{ type: 'recebidosEmpty' as const }] : []),
     { type: 'enviadosHeader' as const },
+    // Convites de compromisso enviados
+    ...compEnviados.map((e) => ({ type: 'compEnviado' as const, compData: e })),
+    // Convites de agenda enviados
     ...enviados.map((e) => ({ type: 'enviado' as const, data: e })),
-    ...(enviados.length === 0 ? [{ type: 'enviadosEmpty' as const }] : []),
+    ...(enviados.length === 0 && compEnviados.length === 0 ? [{ type: 'enviadosEmpty' as const }] : []),
   ]
 
   return (
@@ -219,7 +254,84 @@ export default function CompartilhamentoScreen() {
           )
         }
 
-        // Convite recebido
+        // Convite de compromisso recebido (📌)
+        if (item.type === 'compRecebido' && item.compData) {
+          const r = item.compData
+          const st = getStatusStyle(r.STATUS)
+          const dataFormatada = r.compromisso?.DATA_INICIO
+            ? new Date(r.compromisso.DATA_INICIO).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : ''
+
+          return (
+            <View style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }]}>
+              <View style={styles.itemHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  <Text style={{ fontSize: 14 }}>📌</Text>
+                  <Text style={[styles.itemNome, { flex: 1 }]} numberOfLines={1}>
+                    {r.compromisso?.TITULO || 'Compromisso'}
+                  </Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: st.bg }]}>
+                  <Text style={[styles.badgeText, { color: st.text }]}>{st.label}</Text>
+                </View>
+              </View>
+              <Text style={styles.itemSub}>
+                De: {r.remetente?.NOME || r.remetente?.EMAIL || 'Usuário'}
+              </Text>
+              {dataFormatada ? (
+                <Text style={styles.itemDate}>📅 {dataFormatada}</Text>
+              ) : null}
+              {r.compromisso?.LOCAL ? (
+                <Text style={[styles.itemDate, { marginBottom: 8 }]}>📍 {r.compromisso.LOCAL}</Text>
+              ) : null}
+              {r.STATUS === 'PENDENTE' && (
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    style={styles.aceitarBtn}
+                    onPress={() => handleResponderCompromisso(r.ID, 'ACEITO')}
+                  >
+                    <Text style={styles.aceitarBtnText}>Aceitar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.recusarBtn}
+                    onPress={() => handleResponderCompromisso(r.ID, 'RECUSADO')}
+                  >
+                    <Text style={styles.recusarBtnText}>Recusar</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )
+        }
+
+        // Convite de compromisso enviado (📌)
+        if (item.type === 'compEnviado' && item.compData) {
+          const e = item.compData
+          const st = getStatusStyle(e.STATUS)
+          return (
+            <View style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }]}>
+              <View style={styles.itemHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  <Text style={{ fontSize: 14 }}>📌</Text>
+                  <Text style={[styles.itemNome, { flex: 1 }]} numberOfLines={1}>
+                    {e.compromisso?.TITULO || 'Compromisso'}
+                  </Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: st.bg }]}>
+                  <Text style={[styles.badgeText, { color: st.text }]}>{st.label}</Text>
+                </View>
+              </View>
+              <Text style={styles.itemSub}>
+                Para: {e.destinatario?.NOME || e.destinatario?.EMAIL || 'Usuário'}
+              </Text>
+              <Text style={styles.itemDate}>
+                Enviado em {new Date(e.DATA_COMPARTILHAMENTO).toLocaleDateString('pt-BR')}
+              </Text>
+            </View>
+          )
+        }
+
+        // Convite de agenda recebido (📅)
         if (item.type === 'recebido' && item.data) {
           const r = item.data
           const st = getStatusStyle(r.STATUS)

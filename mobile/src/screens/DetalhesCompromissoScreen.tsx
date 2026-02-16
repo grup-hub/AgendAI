@@ -9,8 +9,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Share,
+  Modal,
+  ActivityIndicator,
 } from 'react-native'
-import { atualizarCompromisso, deletarCompromisso } from '../lib/api'
+import { atualizarCompromisso, deletarCompromisso, compartilharCompromisso } from '../lib/api'
 
 interface Compromisso {
   ID_COMPROMISSO: string
@@ -35,6 +38,12 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
   const [editando, setEditando] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
+  const [modalCompartilhar, setModalCompartilhar] = useState(false)
+  const [emailCompartilhar, setEmailCompartilhar] = useState('')
+  const [compartilhando, setCompartilhando] = useState(false)
+
+  // Compartilhamento interno só para compromissos próprios (não Copa, não compartilhado)
+  const podeCompartilharInterno = !isCopa2026 && !compromisso.compartilhado
 
   // Campos editáveis
   const [titulo, setTitulo] = useState(compromisso.TITULO)
@@ -215,6 +224,78 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
     }
   }
 
+  // ====== COMPARTILHAMENTO ======
+
+  function formatarCompromissoParaCompartilhar() {
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+    const inicio = new Date(compromisso.DATA_INICIO)
+    const dia = diasSemana[inicio.getDay()]
+    const numDia = inicio.getDate()
+    const mes = meses[inicio.getMonth()]
+    const h1 = inicio.getHours().toString().padStart(2, '0')
+    const m1 = inicio.getMinutes().toString().padStart(2, '0')
+
+    let horario = `${h1}:${m1}`
+    if (compromisso.DATA_FIM) {
+      const fim = new Date(compromisso.DATA_FIM)
+      const h2 = fim.getHours().toString().padStart(2, '0')
+      const m2 = fim.getMinutes().toString().padStart(2, '0')
+      if (`${h1}:${m1}` !== `${h2}:${m2}`) {
+        horario = `${h1}:${m1} - ${h2}:${m2}`
+      }
+    }
+
+    const emoji = isCopa2026 ? '⚽' : '📋'
+
+    let texto = `${emoji} *${compromisso.TITULO}*\n`
+    texto += `📅 ${dia}, ${numDia} ${mes} • ${horario}\n`
+
+    if (compromisso.LOCAL) {
+      texto += `📍 ${compromisso.LOCAL}\n`
+    }
+
+    if (compromisso.DESCRICAO) {
+      texto += `📝 ${compromisso.DESCRICAO}\n`
+    }
+
+    texto += `\n_Compartilhado via AgendAI_ ✨`
+
+    return texto
+  }
+
+  async function handleCompartilharExterno() {
+    const texto = formatarCompromissoParaCompartilhar()
+    try {
+      await Share.share({ message: texto })
+    } catch (err: any) {
+      if (err.message !== 'User did not share') {
+        Alert.alert('Erro', 'Não foi possível compartilhar')
+      }
+    }
+  }
+
+  async function handleCompartilharInterno() {
+    const emailTrimmed = emailCompartilhar.trim()
+    if (!emailTrimmed) {
+      Alert.alert('Erro', 'Digite o email do usuário')
+      return
+    }
+
+    setCompartilhando(true)
+    try {
+      const result = await compartilharCompromisso(compromisso.ID_COMPROMISSO, emailTrimmed)
+      Alert.alert('✅ Sucesso', result.message || 'Compromisso compartilhado!')
+      setModalCompartilhar(false)
+      setEmailCompartilhar('')
+    } catch (err: any) {
+      Alert.alert('Erro', err.message || 'Erro ao compartilhar')
+    } finally {
+      setCompartilhando(false)
+    }
+  }
+
   // Modo visualização
   if (!editando) {
     return (
@@ -304,6 +385,59 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
             </View>
           </View>
         )}
+
+        {/* Compartilhar */}
+        <View style={styles.shareCard}>
+          <Text style={styles.shareTitle}>📤 Compartilhar</Text>
+
+          <TouchableOpacity style={styles.shareExternoBtn} onPress={handleCompartilharExterno}>
+            <Text style={styles.shareExternoBtnIcon}>💬</Text>
+            <Text style={styles.shareExternoBtnText}>Enviar por mensagem</Text>
+          </TouchableOpacity>
+
+          {podeCompartilharInterno && (
+            <TouchableOpacity style={styles.shareInternoBtn} onPress={() => setModalCompartilhar(true)}>
+              <Text style={styles.shareInternoBtnIcon}>👥</Text>
+              <Text style={styles.shareInternoBtnText}>Compartilhar com usuário AgendAI</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Modal de compartilhamento interno */}
+        <Modal visible={modalCompartilhar} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>👥 Compartilhar Compromisso</Text>
+              <Text style={styles.modalSubtitle}>O usuário receberá uma cópia deste compromisso na agenda dele</Text>
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Email do usuário"
+                value={emailCompartilhar}
+                onChangeText={setEmailCompartilhar}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              <TouchableOpacity
+                style={[styles.modalShareBtn, compartilhando && styles.btnDisabled]}
+                onPress={handleCompartilharInterno}
+                disabled={compartilhando}
+              >
+                {compartilhando ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalShareBtnText}>Enviar convite</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setModalCompartilhar(false); setEmailCompartilhar('') }}>
+                <Text style={styles.modalCancelBtnText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Ações */}
         {podeEditar && compromisso.STATUS !== 'CANCELADO' && (
@@ -522,6 +656,78 @@ const styles = StyleSheet.create({
   copaInfoIcon: { fontSize: 28, marginRight: 12 },
   copaInfoTitle: { fontSize: 14, fontWeight: '700', color: '#166534', marginBottom: 2 },
   copaInfoText: { fontSize: 12, color: '#15803D', lineHeight: 18 },
+
+  // Share
+  shareCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shareTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginBottom: 14 },
+  shareExternoBtn: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  shareExternoBtnIcon: { fontSize: 18, marginRight: 10 },
+  shareExternoBtnText: { color: '#2563EB', fontSize: 15, fontWeight: '600' },
+  shareInternoBtn: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shareInternoBtnIcon: { fontSize: 18, marginRight: 10 },
+  shareInternoBtnText: { color: '#7C3AED', fontSize: 15, fontWeight: '600' },
+
+  // Modal compartilhamento
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
+  modalInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    color: '#111827',
+  },
+  modalShareBtn: {
+    backgroundColor: '#7C3AED',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalShareBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  modalCancelBtn: { alignItems: 'center', paddingVertical: 12 },
+  modalCancelBtnText: { color: '#6B7280', fontSize: 16 },
 
   // Actions
   actions: { marginTop: 8, gap: 10 },
