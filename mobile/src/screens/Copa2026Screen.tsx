@@ -30,7 +30,7 @@ type Jogo = {
 
 type FiltroGrupo = 'TODOS' | string
 
-export default function Copa2026Screen() {
+export default function Copa2026Screen({ navigation }: any) {
   const insets = useSafeAreaInsets()
   const [jogos, setJogos] = useState<Jogo[]>([])
   const [grupos, setGrupos] = useState<string[]>([])
@@ -256,30 +256,53 @@ export default function Copa2026Screen() {
     </View>
   )
 
+  const handleVerDetalhes = useCallback((item: Jogo) => {
+    // Montar objeto compromisso para a tela de detalhes
+    const dataFim = new Date(new Date(item.date).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    navigation.navigate('DetalhesCompromisso', {
+      compromisso: {
+        ID_COMPROMISSO: `copa2026-${item.id}`,
+        TITULO: `${item.homeBandeira} ${item.home} × ${item.away} ${item.awayBandeira}`,
+        DESCRICAO: `Copa do Mundo 2026 - Fase de Grupos\nGrupo ${item.grupo} • Rodada ${item.rodada}`,
+        DATA_INICIO: item.date,
+        DATA_FIM: dataFim,
+        LOCAL: `${item.stadium}, ${item.city}`,
+        STATUS: 'ATIVO',
+        ORIGEM: 'COPA2026',
+      },
+    })
+  }, [navigation])
+
   const renderJogo = useCallback(({ item }: { item: Jogo }) => {
     const { diaSemana, dia, mes, hora } = formatDate(item.date)
     const isBrasil = item.home === 'Brasil' || item.away === 'Brasil'
 
     return (
-      <TouchableOpacity
+      <View
         style={[
           styles.jogoCard,
           isBrasil && styles.jogoCardBrasil,
           item.importado && styles.jogoCardImportado,
         ]}
-        onPress={() => handleToggleJogo(item)}
-        disabled={importando}
-        activeOpacity={0.7}
       >
-        {/* Status de importação */}
-        <View style={[styles.importStatus, item.importado ? styles.importStatusOn : styles.importStatusOff]}>
+        {/* Status de importação — toque aqui para toggle */}
+        <TouchableOpacity
+          style={[styles.importStatus, item.importado ? styles.importStatusOn : styles.importStatusOff]}
+          onPress={() => handleToggleJogo(item)}
+          disabled={importando}
+          activeOpacity={0.6}
+        >
           <Text style={styles.importStatusText}>
             {item.importado ? '✅' : '➕'}
           </Text>
-        </View>
+        </TouchableOpacity>
 
-        {/* Informação do jogo */}
-        <View style={styles.jogoContent}>
+        {/* Informação do jogo — toque aqui para ver detalhes */}
+        <TouchableOpacity
+          style={styles.jogoContent}
+          onPress={() => handleVerDetalhes(item)}
+          activeOpacity={0.7}
+        >
           {/* Grupo + Rodada + Data */}
           <View style={styles.jogoMeta}>
             <Text style={styles.jogoGrupo}>Grupo {item.grupo} • R{item.rodada}</Text>
@@ -307,10 +330,10 @@ export default function Copa2026Screen() {
 
           {/* Local */}
           <Text style={styles.jogoLocal}>📍 {item.stadium}, {item.city}</Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     )
-  }, [importando])
+  }, [importando, handleVerDetalhes])
 
   const renderHeaderMemo = useMemo(() => renderHeader(), [insets.top, totalImportados, importando, grupos, filtroGrupo])
 

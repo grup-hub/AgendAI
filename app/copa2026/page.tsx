@@ -32,6 +32,7 @@ export default function Copa2026Page() {
   const [sucesso, setSucesso] = useState('')
   const [filtroGrupo, setFiltroGrupo] = useState<FiltroGrupo>('TODOS')
   const [totalImportados, setTotalImportados] = useState(0)
+  const [jogoSelecionado, setJogoSelecionado] = useState<Jogo | null>(null)
 
   async function carregarJogos() {
     const response = await fetch('/api/copa2026')
@@ -300,59 +301,76 @@ export default function Copa2026Page() {
             return (
               <div
                 key={jogo.id}
-                className={`rounded-xl overflow-hidden shadow-sm hover:shadow-md transition cursor-pointer border ${
+                className={`rounded-xl overflow-hidden shadow-sm hover:shadow-md transition border ${
                   jogo.importado
                     ? 'bg-white border-blue-300 ring-2 ring-blue-500'
                     : 'bg-white border-gray-200'
                 } ${isBrasil ? 'ring-2 ring-emerald-400 border-emerald-300' : ''}`}
-                onClick={() => handleToggleJogo(jogo)}
               >
-                {/* Header do card */}
-                <div className={`px-4 py-2 flex justify-between items-center text-xs ${
-                  isBrasil ? 'bg-emerald-50' : 'bg-gray-50'
-                }`}>
-                  <span className="font-bold text-gray-500 uppercase tracking-wide">
-                    Grupo {jogo.grupo} • R{jogo.rodada}
-                  </span>
-                  <span className="font-semibold text-blue-600">
-                    {diaSemana}, {dia} {mes} • {hora}h
-                  </span>
-                </div>
+                {/* Corpo clicável — abre detalhes */}
+                <div
+                  className="cursor-pointer"
+                  onClick={() => setJogoSelecionado(jogo)}
+                >
+                  {/* Header do card */}
+                  <div className={`px-4 py-2 flex justify-between items-center text-xs ${
+                    isBrasil ? 'bg-emerald-50' : 'bg-gray-50'
+                  }`}>
+                    <span className="font-bold text-gray-500 uppercase tracking-wide">
+                      Grupo {jogo.grupo} • R{jogo.rodada}
+                    </span>
+                    <span className="font-semibold text-blue-600">
+                      {diaSemana}, {dia} {mes} • {hora}h
+                    </span>
+                  </div>
 
-                {/* Times */}
-                <div className="px-4 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <span className="text-2xl">{jogo.homeBandeira}</span>
-                      <span className={`font-semibold ${
-                        isBrasil && jogo.home === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
-                      }`}>
-                        {jogo.home}
-                      </span>
+                  {/* Times */}
+                  <div className="px-4 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <span className="text-2xl">{jogo.homeBandeira}</span>
+                        <span className={`font-semibold ${
+                          isBrasil && jogo.home === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
+                        }`}>
+                          {jogo.home}
+                        </span>
+                      </div>
+
+                      <span className="text-gray-400 font-bold text-lg mx-3">×</span>
+
+                      <div className="flex items-center gap-3 flex-1 justify-end">
+                        <span className={`font-semibold ${
+                          isBrasil && jogo.away === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
+                        }`}>
+                          {jogo.away}
+                        </span>
+                        <span className="text-2xl">{jogo.awayBandeira}</span>
+                      </div>
                     </div>
+                  </div>
 
-                    <span className="text-gray-400 font-bold text-lg mx-3">×</span>
-
-                    <div className="flex items-center gap-3 flex-1 justify-end">
-                      <span className={`font-semibold ${
-                        isBrasil && jogo.away === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
-                      }`}>
-                        {jogo.away}
-                      </span>
-                      <span className="text-2xl">{jogo.awayBandeira}</span>
-                    </div>
+                  {/* Local */}
+                  <div className="px-4 pb-2">
+                    <span className="text-xs text-gray-500">📍 {jogo.stadium}, {jogo.city}</span>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className={`px-4 py-2 flex justify-between items-center border-t ${
-                  jogo.importado ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'
-                }`}>
-                  <span className="text-xs text-gray-500">📍 {jogo.stadium}, {jogo.city}</span>
+                {/* Footer clicável — toggle importação */}
+                <div
+                  className={`px-4 py-2.5 flex justify-between items-center border-t cursor-pointer transition-colors ${
+                    jogo.importado
+                      ? 'bg-blue-50 border-blue-100 hover:bg-blue-100'
+                      : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleToggleJogo(jogo)
+                  }}
+                >
                   <span className={`text-sm font-semibold ${
                     jogo.importado ? 'text-blue-600' : 'text-gray-400'
                   }`}>
-                    {jogo.importado ? '✅ Na agenda' : '➕ Adicionar'}
+                    {jogo.importado ? '✅ Na agenda' : '➕ Adicionar à agenda'}
                   </span>
                 </div>
               </div>
@@ -366,6 +384,111 @@ export default function Copa2026Page() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalhes do Jogo */}
+      {jogoSelecionado && (() => {
+        const { diaSemana, dia, mes, hora } = formatDate(jogoSelecionado.date)
+        const isBrasil = jogoSelecionado.home === 'Brasil' || jogoSelecionado.away === 'Brasil'
+        const dataFim = new Date(new Date(jogoSelecionado.date).getTime() + 2 * 60 * 60 * 1000)
+        const { hora: horaFim } = formatDate(dataFim.toISOString())
+
+        return (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setJogoSelecionado(null)}
+          >
+            <div
+              className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header do modal */}
+              <div className={`px-6 py-5 text-center ${isBrasil ? 'bg-emerald-800' : 'bg-slate-800'}`}>
+                <p className="text-xs text-gray-300 uppercase tracking-widest mb-2">
+                  Copa do Mundo 2026 • Grupo {jogoSelecionado.grupo} • Rodada {jogoSelecionado.rodada}
+                </p>
+                <div className="flex items-center justify-center gap-6 my-4">
+                  <div className="text-center">
+                    <span className="text-4xl block mb-1">{jogoSelecionado.homeBandeira}</span>
+                    <span className={`font-bold text-white text-lg ${isBrasil && jogoSelecionado.home === 'Brasil' ? 'text-emerald-300' : ''}`}>
+                      {jogoSelecionado.home}
+                    </span>
+                  </div>
+                  <span className="text-3xl font-bold text-gray-400">×</span>
+                  <div className="text-center">
+                    <span className="text-4xl block mb-1">{jogoSelecionado.awayBandeira}</span>
+                    <span className={`font-bold text-white text-lg ${isBrasil && jogoSelecionado.away === 'Brasil' ? 'text-emerald-300' : ''}`}>
+                      {jogoSelecionado.away}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Informações */}
+              <div className="px-6 py-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">📅</span>
+                  <div>
+                    <p className="text-xs text-gray-400">Data</p>
+                    <p className="text-gray-900 font-medium">{diaSemana}, {dia} {mes} de 2026</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">🕐</span>
+                  <div>
+                    <p className="text-xs text-gray-400">Horário (Brasília)</p>
+                    <p className="text-gray-900 font-medium">{hora}h - {horaFim}h</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-lg">📍</span>
+                  <div>
+                    <p className="text-xs text-gray-400">Local</p>
+                    <p className="text-gray-900 font-medium">{jogoSelecionado.stadium}</p>
+                    <p className="text-gray-500 text-sm">{jogoSelecionado.city}</p>
+                  </div>
+                </div>
+
+                {/* Aviso somente visualização */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">
+                  <span className="text-xl">⚽</span>
+                  <div>
+                    <p className="text-green-800 font-semibold text-sm">Jogo da Copa do Mundo 2026</p>
+                    <p className="text-green-600 text-xs">Este compromisso não pode ser editado.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ações do modal */}
+              <div className="px-6 pb-5 flex gap-3">
+                <button
+                  onClick={() => {
+                    handleToggleJogo(jogoSelecionado)
+                    setJogoSelecionado({
+                      ...jogoSelecionado,
+                      importado: !jogoSelecionado.importado,
+                    })
+                  }}
+                  className={`flex-1 py-3 rounded-lg font-medium transition text-sm ${
+                    jogoSelecionado.importado
+                      ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {jogoSelecionado.importado ? '🗑️ Remover da agenda' : '📥 Importar para agenda'}
+                </button>
+                <button
+                  onClick={() => setJogoSelecionado(null)}
+                  className="px-6 py-3 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 font-medium text-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

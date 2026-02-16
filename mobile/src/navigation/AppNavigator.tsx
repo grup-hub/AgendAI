@@ -47,6 +47,23 @@ function AgendaStack() {
   )
 }
 
+function Copa2026Stack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Copa2026Home"
+        component={Copa2026Screen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="DetalhesCompromisso"
+        component={DetalhesCompromissoScreen}
+        options={{ title: 'Detalhes do Jogo', ...headerStyle }}
+      />
+    </Stack.Navigator>
+  )
+}
+
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   const icons: Record<string, string> = {
     'Agenda': '📅',
@@ -100,7 +117,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Copa 2026"
-        component={Copa2026Screen}
+        component={Copa2026Stack}
         options={{ headerShown: false }}
       />
       <Tab.Screen

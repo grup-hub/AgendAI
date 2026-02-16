@@ -34,6 +34,7 @@ export default function EditarCompromissoPage() {
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const [isCopa2026, setIsCopa2026] = useState(false)
 
   useEffect(() => {
     async function carregar() {
@@ -60,6 +61,7 @@ export default function EditarCompromissoPage() {
       }
 
       setCompromisso(comp)
+      setIsCopa2026(comp.ORIGEM === 'COPA2026')
       setTitulo(comp.TITULO)
       setDescricao(comp.DESCRICAO || '')
       setLocal(comp.LOCAL || '')
@@ -143,7 +145,20 @@ export default function EditarCompromissoPage() {
       {/* Main Content */}
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow p-8">
-          <h1 className="text-2xl font-bold mb-6">Editar Compromisso</h1>
+          <h1 className="text-2xl font-bold mb-6">
+            {isCopa2026 ? 'Detalhes do Jogo' : 'Editar Compromisso'}
+          </h1>
+
+          {/* Aviso Copa 2026 */}
+          {isCopa2026 && (
+            <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200 flex items-center gap-3">
+              <span className="text-2xl">⚽</span>
+              <div>
+                <p className="font-semibold text-green-800">Jogo da Copa do Mundo 2026</p>
+                <p className="text-sm text-green-600">Este compromisso foi importado automaticamente e não pode ser editado.</p>
+              </div>
+            </div>
+          )}
 
           {erro && (
             <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
@@ -155,15 +170,16 @@ export default function EditarCompromissoPage() {
             {/* Título */}
             <div>
               <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-2">
-                Título *
+                Título {!isCopa2026 && '*'}
               </label>
               <input
                 id="titulo"
                 type="text"
-                required
+                required={!isCopa2026}
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isCopa2026}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -177,7 +193,8 @@ export default function EditarCompromissoPage() {
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
                 rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isCopa2026}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -191,7 +208,8 @@ export default function EditarCompromissoPage() {
                 type="text"
                 value={local}
                 onChange={(e) => setLocal(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isCopa2026}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
               />
             </div>
 
@@ -199,29 +217,31 @@ export default function EditarCompromissoPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="dataInicio" className="block text-sm font-medium text-gray-700 mb-2">
-                  Data/Hora Início *
+                  Data/Hora Início {!isCopa2026 && '*'}
                 </label>
                 <input
                   id="dataInicio"
                   type="datetime-local"
-                  required
+                  required={!isCopa2026}
                   value={dataInicio}
                   onChange={(e) => setDataInicio(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isCopa2026}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                 />
               </div>
 
               <div>
                 <label htmlFor="dataFim" className="block text-sm font-medium text-gray-700 mb-2">
-                  Data/Hora Fim *
+                  Data/Hora Fim {!isCopa2026 && '*'}
                 </label>
                 <input
                   id="dataFim"
                   type="datetime-local"
-                  required
+                  required={!isCopa2026}
                   value={dataFim}
                   onChange={(e) => setDataFim(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={isCopa2026}
+                  className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                 />
               </div>
             </div>
@@ -235,7 +255,8 @@ export default function EditarCompromissoPage() {
                 id="status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={isCopa2026}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isCopa2026 ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
               >
                 <option value="ATIVO">Ativo</option>
                 <option value="CANCELADO">Cancelado</option>
@@ -245,18 +266,20 @@ export default function EditarCompromissoPage() {
 
             {/* Botões */}
             <div className="flex gap-4 pt-6">
-              <button
-                type="submit"
-                disabled={salvando}
-                className="flex-1 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
-              >
-                {salvando ? 'Salvando...' : 'Salvar Alterações'}
-              </button>
+              {!isCopa2026 && (
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="flex-1 px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
+                >
+                  {salvando ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              )}
               <Link
                 href="/agenda"
-                className="flex-1 px-6 py-3 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 font-medium text-center"
+                className={`${isCopa2026 ? 'flex-1' : 'flex-1'} px-6 py-3 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 font-medium text-center`}
               >
-                Cancelar
+                {isCopa2026 ? 'Voltar para Agenda' : 'Cancelar'}
               </Link>
             </div>
           </form>

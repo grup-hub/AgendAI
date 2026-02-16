@@ -29,7 +29,8 @@ interface Compromisso {
 
 export default function DetalhesCompromissoScreen({ route, navigation }: any) {
   const compromisso: Compromisso = route.params.compromisso
-  const podeEditar = !compromisso.compartilhado || compromisso.permissao === 'EDITAR'
+  const isCopa2026 = compromisso.ORIGEM === 'COPA2026'
+  const podeEditar = !isCopa2026 && (!compromisso.compartilhado || compromisso.permissao === 'EDITAR')
 
   const [editando, setEditando] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -228,7 +229,7 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
           </View>
           {compromisso.ORIGEM && (
             <Text style={styles.origemText}>
-              via {compromisso.ORIGEM === 'APP_MOBILE' ? 'App' : compromisso.ORIGEM === 'WHATSAPP' ? 'WhatsApp' : 'Web'}
+              via {compromisso.ORIGEM === 'APP_MOBILE' ? 'App' : compromisso.ORIGEM === 'WHATSAPP' ? 'WhatsApp' : compromisso.ORIGEM === 'COPA2026' ? '⚽ Copa 2026' : 'Web'}
             </Text>
           )}
         </View>
@@ -290,6 +291,17 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
           <View style={styles.descricaoCard}>
             <Text style={styles.descricaoLabel}>Descrição</Text>
             <Text style={styles.descricaoText}>{compromisso.DESCRICAO}</Text>
+          </View>
+        )}
+
+        {/* Aviso Copa 2026 — somente visualização */}
+        {isCopa2026 && (
+          <View style={styles.copaInfoCard}>
+            <Text style={styles.copaInfoIcon}>⚽</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.copaInfoTitle}>Jogo da Copa do Mundo 2026</Text>
+              <Text style={styles.copaInfoText}>Este compromisso foi importado automaticamente e não pode ser editado.</Text>
+            </View>
           </View>
         )}
 
@@ -495,6 +507,21 @@ const styles = StyleSheet.create({
   },
   descricaoLabel: { fontSize: 12, color: '#9CA3AF', marginBottom: 8 },
   descricaoText: { fontSize: 15, color: '#374151', lineHeight: 22 },
+
+  // Copa 2026 info
+  copaInfoCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  copaInfoIcon: { fontSize: 28, marginRight: 12 },
+  copaInfoTitle: { fontSize: 14, fontWeight: '700', color: '#166534', marginBottom: 2 },
+  copaInfoText: { fontSize: 12, color: '#15803D', lineHeight: 18 },
 
   // Actions
   actions: { marginTop: 8, gap: 10 },
