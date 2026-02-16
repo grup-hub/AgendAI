@@ -19,8 +19,12 @@ type Jogo = {
   rodada: number
   home: string
   away: string
+  homeOriginal: string
+  awayOriginal: string
   homeBandeira: string
   awayBandeira: string
+  homeADefinir: boolean
+  awayADefinir: boolean
   date: string
   city: string
   stadium: string
@@ -259,11 +263,13 @@ export default function Copa2026Screen({ navigation }: any) {
   const handleVerDetalhes = useCallback((item: Jogo) => {
     // Montar objeto compromisso para a tela de detalhes
     const dataFim = new Date(new Date(item.date).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    const homeLabel = item.homeADefinir ? `❓ ${item.home}` : `${item.homeBandeira} ${item.home}`
+    const awayLabel = item.awayADefinir ? `❓ ${item.away}` : `${item.awayBandeira} ${item.away}`
     navigation.navigate('DetalhesCompromisso', {
       compromisso: {
         ID_COMPROMISSO: `copa2026-${item.id}`,
-        TITULO: `${item.homeBandeira} ${item.home} × ${item.away} ${item.awayBandeira}`,
-        DESCRICAO: `Copa do Mundo 2026 - Fase de Grupos\nGrupo ${item.grupo} • Rodada ${item.rodada}`,
+        TITULO: `${homeLabel} × ${awayLabel}`,
+        DESCRICAO: `Copa do Mundo 2026 - Fase de Grupos\nGrupo ${item.grupo} • Rodada ${item.rodada}${item.homeADefinir || item.awayADefinir ? '\n\n⚠️ Um dos times ainda não foi definido (vaga de playoff/repescagem).' : ''}`,
         DATA_INICIO: item.date,
         DATA_FIM: dataFim,
         LOCAL: `${item.stadium}, ${item.city}`,
@@ -315,14 +321,22 @@ export default function Copa2026Screen({ navigation }: any) {
           <View style={styles.timesContainer}>
             <View style={styles.timeRow}>
               <Text style={styles.timeBandeira}>{item.homeBandeira}</Text>
-              <Text style={[styles.timeNome, isBrasil && item.home === 'Brasil' && styles.timeNomeBrasil]}>
+              <Text style={[
+                styles.timeNome,
+                isBrasil && item.home === 'Brasil' && styles.timeNomeBrasil,
+                item.homeADefinir && styles.timeNomeADefinir,
+              ]}>
                 {item.home}
               </Text>
             </View>
             <Text style={styles.vsText}>×</Text>
             <View style={styles.timeRow}>
               <Text style={styles.timeBandeira}>{item.awayBandeira}</Text>
-              <Text style={[styles.timeNome, isBrasil && item.away === 'Brasil' && styles.timeNomeBrasil]}>
+              <Text style={[
+                styles.timeNome,
+                isBrasil && item.away === 'Brasil' && styles.timeNomeBrasil,
+                item.awayADefinir && styles.timeNomeADefinir,
+              ]}>
                 {item.away}
               </Text>
             </View>
@@ -601,6 +615,11 @@ const styles = StyleSheet.create({
   timeNomeBrasil: {
     color: '#059669',
     fontWeight: '800',
+  },
+  timeNomeADefinir: {
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    fontWeight: '400',
   },
   vsText: {
     fontSize: 16,

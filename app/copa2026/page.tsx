@@ -10,8 +10,12 @@ interface Jogo {
   rodada: number
   home: string
   away: string
+  homeOriginal: string
+  awayOriginal: string
   homeBandeira: string
   awayBandeira: string
+  homeADefinir: boolean
+  awayADefinir: boolean
   date: string
   city: string
   stadium: string
@@ -330,7 +334,11 @@ export default function Copa2026Page() {
                       <div className="flex items-center gap-3 flex-1">
                         <span className="text-2xl">{jogo.homeBandeira}</span>
                         <span className={`font-semibold ${
-                          isBrasil && jogo.home === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
+                          isBrasil && jogo.home === 'Brasil'
+                            ? 'text-emerald-600 font-bold'
+                            : jogo.homeADefinir
+                            ? 'text-gray-400 italic font-normal text-sm'
+                            : 'text-gray-900'
                         }`}>
                           {jogo.home}
                         </span>
@@ -340,7 +348,11 @@ export default function Copa2026Page() {
 
                       <div className="flex items-center gap-3 flex-1 justify-end">
                         <span className={`font-semibold ${
-                          isBrasil && jogo.away === 'Brasil' ? 'text-emerald-600 font-bold' : 'text-gray-900'
+                          isBrasil && jogo.away === 'Brasil'
+                            ? 'text-emerald-600 font-bold'
+                            : jogo.awayADefinir
+                            ? 'text-gray-400 italic font-normal text-sm'
+                            : 'text-gray-900'
                         }`}>
                           {jogo.away}
                         </span>
@@ -409,14 +421,26 @@ export default function Copa2026Page() {
                 <div className="flex items-center justify-center gap-6 my-4">
                   <div className="text-center">
                     <span className="text-4xl block mb-1">{jogoSelecionado.homeBandeira}</span>
-                    <span className={`font-bold text-white text-lg ${isBrasil && jogoSelecionado.home === 'Brasil' ? 'text-emerald-300' : ''}`}>
+                    <span className={`font-bold text-white text-lg ${
+                      isBrasil && jogoSelecionado.home === 'Brasil'
+                        ? 'text-emerald-300'
+                        : jogoSelecionado.homeADefinir
+                        ? 'text-gray-400 italic font-normal text-base'
+                        : ''
+                    }`}>
                       {jogoSelecionado.home}
                     </span>
                   </div>
                   <span className="text-3xl font-bold text-gray-400">×</span>
                   <div className="text-center">
                     <span className="text-4xl block mb-1">{jogoSelecionado.awayBandeira}</span>
-                    <span className={`font-bold text-white text-lg ${isBrasil && jogoSelecionado.away === 'Brasil' ? 'text-emerald-300' : ''}`}>
+                    <span className={`font-bold text-white text-lg ${
+                      isBrasil && jogoSelecionado.away === 'Brasil'
+                        ? 'text-emerald-300'
+                        : jogoSelecionado.awayADefinir
+                        ? 'text-gray-400 italic font-normal text-base'
+                        : ''
+                    }`}>
                       {jogoSelecionado.away}
                     </span>
                   </div>
@@ -449,6 +473,17 @@ export default function Copa2026Page() {
                     <p className="text-gray-500 text-sm">{jogoSelecionado.city}</p>
                   </div>
                 </div>
+
+                {/* Aviso time a definir */}
+                {(jogoSelecionado.homeADefinir || jogoSelecionado.awayADefinir) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <div>
+                      <p className="text-amber-800 font-semibold text-sm">Time a ser definido</p>
+                      <p className="text-amber-600 text-xs">Um dos times ainda será decidido por playoff/repescagem da FIFA.</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Aviso somente visualização */}
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3">

@@ -125,6 +125,20 @@ const BANDEIRAS: Record<string, string> = {
   'Argentina': '🇦🇷', 'Argélia': '🇩🇿', 'Áustria': '🇦🇹', 'Jordânia': '🇯🇴',
   'Portugal': '🇵🇹', 'Uzbequistão': '🇺🇿', 'Colômbia': '🇨🇴',
   'Inglaterra': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croácia': '🇭🇷', 'Gana': '🇬🇭', 'Panamá': '🇵🇦',
+  // Vagas a definir (playoffs/repescagem)
+  'A definir (Europa A)': '❓', 'A definir (Europa B)': '❓',
+  'A definir (Europa C)': '❓', 'A definir (Europa D)': '❓',
+  'A definir (Interc. 1)': '❓', 'A definir (Interc. 2)': '❓',
+}
+
+// Nomes curtos para times "A definir" (exibição mais limpa nos cards)
+const NOMES_CURTOS: Record<string, string> = {
+  'A definir (Europa A)': 'A Definir (UEFA)',
+  'A definir (Europa B)': 'A Definir (UEFA)',
+  'A definir (Europa C)': 'A Definir (UEFA)',
+  'A definir (Europa D)': 'A Definir (UEFA)',
+  'A definir (Interc. 1)': 'A Definir (Repesc.)',
+  'A definir (Interc. 2)': 'A Definir (Repesc.)',
 }
 
 // Helper: autenticar via cookie (web) ou Bearer token (mobile)
@@ -180,6 +194,9 @@ export async function GET(req: Request) {
     }
   }
 
+  // Helper para verificar se é um time "a definir"
+  const isADefinir = (nome: string) => nome.startsWith('A definir')
+
   // Preparar dados com bandeiras e status de importação
   const jogos = JOGOS_COPA_2026.map((jogo, index) => {
     const titulo = `${jogo.home} x ${jogo.away}`
@@ -189,10 +206,14 @@ export async function GET(req: Request) {
       id: index + 1,
       grupo: jogo.grupo,
       rodada: jogo.rodada,
-      home: jogo.home,
-      away: jogo.away,
+      home: NOMES_CURTOS[jogo.home] || jogo.home,
+      away: NOMES_CURTOS[jogo.away] || jogo.away,
+      homeOriginal: jogo.home,
+      awayOriginal: jogo.away,
       homeBandeira: BANDEIRAS[jogo.home] || '🏳️',
       awayBandeira: BANDEIRAS[jogo.away] || '🏳️',
+      homeADefinir: isADefinir(jogo.home),
+      awayADefinir: isADefinir(jogo.away),
       date: jogo.date,
       city: jogo.city,
       stadium: jogo.stadium,
