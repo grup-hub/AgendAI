@@ -21,6 +21,9 @@ interface Jogo {
   stadium: string
   destaque: boolean
   importado: boolean
+  golsHome: number | null
+  golsAway: number | null
+  statusJogo: string
 }
 
 type FiltroGrupo = 'TODOS' | string
@@ -328,7 +331,7 @@ export default function Copa2026Page() {
                     </span>
                   </div>
 
-                  {/* Times */}
+                  {/* Times + Placar */}
                   <div className="px-4 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
@@ -344,7 +347,23 @@ export default function Copa2026Page() {
                         </span>
                       </div>
 
-                      <span className="text-gray-400 font-bold text-lg mx-3">×</span>
+                      {/* Placar ou X */}
+                      {jogo.golsHome !== null && jogo.golsAway !== null ? (
+                        <div className="flex flex-col items-center mx-3">
+                          <span className="text-xl font-bold text-gray-800">
+                            {jogo.golsHome} - {jogo.golsAway}
+                          </span>
+                          <span className={`text-xs font-medium mt-0.5 ${
+                            jogo.statusJogo === 'Match Finished'
+                              ? 'text-gray-500'
+                              : 'text-green-500 animate-pulse'
+                          }`}>
+                            {jogo.statusJogo === 'Match Finished' ? '✅ Encerrado' : '🔴 Ao vivo'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 font-bold text-lg mx-3">×</span>
+                      )}
 
                       <div className="flex items-center gap-3 flex-1 justify-end">
                         <span className={`font-semibold ${
@@ -431,7 +450,22 @@ export default function Copa2026Page() {
                       {jogoSelecionado.home}
                     </span>
                   </div>
-                  <span className="text-3xl font-bold text-gray-400">×</span>
+                  {jogoSelecionado.golsHome !== null && jogoSelecionado.golsAway !== null ? (
+                    <div className="flex flex-col items-center">
+                      <span className="text-4xl font-bold text-white">
+                        {jogoSelecionado.golsHome} - {jogoSelecionado.golsAway}
+                      </span>
+                      <span className={`text-xs font-medium mt-1 ${
+                        jogoSelecionado.statusJogo === 'Match Finished'
+                          ? 'text-gray-400'
+                          : 'text-green-400 animate-pulse'
+                      }`}>
+                        {jogoSelecionado.statusJogo === 'Match Finished' ? '✅ Encerrado' : '🔴 Ao vivo'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-400">×</span>
+                  )}
                   <div className="text-center">
                     <span className="text-4xl block mb-1">{jogoSelecionado.awayBandeira}</span>
                     <span className={`font-bold text-white text-lg ${

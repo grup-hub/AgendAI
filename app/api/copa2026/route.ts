@@ -11,6 +11,99 @@ let cachedFixtures: any[] | null = null
 let cacheTimestamp = 0
 const CACHE_DURATION = 1000 * 60 * 60 // 1 hora de cache
 
+// Cache de placares do TheSportsDB
+let cachedScores: Record<string, { home: number | null, away: number | null, status: string }> = {}
+let scoresCacheTimestamp = 0
+const SCORES_CACHE_DURATION = 1000 * 60 * 15 // 15 minutos
+
+// Mapa de nomes em inglês (TheSportsDB) para português (nossos dados)
+const NOMES_EN_PT: Record<string, string> = {
+  'Mexico': 'México',
+  'South Africa': 'África do Sul',
+  'South Korea': 'Coreia do Sul',
+  'USA': 'Estados Unidos',
+  'United States': 'Estados Unidos',
+  'Paraguay': 'Paraguai',
+  'Canada': 'Canadá',
+  'Qatar': 'Qatar',
+  'Switzerland': 'Suíça',
+  'Brazil': 'Brasil',
+  'Morocco': 'Marrocos',
+  'Haiti': 'Haiti',
+  'Scotland': 'Escócia',
+  'Germany': 'Alemanha',
+  'Curacao': 'Curaçao',
+  'Curaçao': 'Curaçao',
+  'Ivory Coast': 'Costa do Marfim',
+  'Ecuador': 'Equador',
+  'Netherlands': 'Holanda',
+  'Japan': 'Japão',
+  'Tunisia': 'Tunísia',
+  'Belgium': 'Bélgica',
+  'Egypt': 'Egito',
+  'Iran': 'Irã',
+  'New Zealand': 'Nova Zelândia',
+  'Spain': 'Espanha',
+  'Cape Verde': 'Cabo Verde',
+  'Saudi Arabia': 'Arábia Saudita',
+  'Uruguay': 'Uruguai',
+  'France': 'França',
+  'Senegal': 'Senegal',
+  'Norway': 'Noruega',
+  'Argentina': 'Argentina',
+  'Algeria': 'Argélia',
+  'Austria': 'Áustria',
+  'Jordan': 'Jordânia',
+  'Portugal': 'Portugal',
+  'Uzbekistan': 'Uzbequistão',
+  'Colombia': 'Colômbia',
+  'England': 'Inglaterra',
+  'Croatia': 'Croácia',
+  'Panama': 'Panamá',
+  'Ghana': 'Gana',
+  'Australia': 'Austrália',
+}
+
+// Buscar placares do TheSportsDB (gratuito)
+async function buscarPlacaresSportsDB(): Promise<Record<string, { home: number | null, away: number | null, status: string }>> {
+  const agora = Date.now()
+  if (agora - scoresCacheTimestamp < SCORES_CACHE_DURATION && Object.keys(cachedScores).length > 0) {
+    return cachedScores
+  }
+
+  try {
+    const res = await fetch('https://www.thesportsdb.com/api/v1/json/3/eventsseason.php?id=4429&s=2026', {
+      next: { revalidate: 900 } // 15 minutos
+    })
+    if (!res.ok) return cachedScores
+
+    const data = await res.json()
+    const events = data.events || []
+
+    const scores: Record<string, { home: number | null, away: number | null, status: string }> = {}
+
+    for (const event of events) {
+      const homeEN = event.strHomeTeam
+      const awayEN = event.strAwayTeam
+      const homePT = NOMES_EN_PT[homeEN] || homeEN
+      const awayPT = NOMES_EN_PT[awayEN] || awayEN
+      // Chave: "TimeCasa x TimeVisitante"
+      const chave = `${homePT} x ${awayPT}`
+      scores[chave] = {
+        home: event.intHomeScore !== null ? Number(event.intHomeScore) : null,
+        away: event.intAwayScore !== null ? Number(event.intAwayScore) : null,
+        status: event.strStatus || 'Not Started',
+      }
+    }
+
+    cachedScores = scores
+    scoresCacheTimestamp = agora
+    return scores
+  } catch {
+    return cachedScores
+  }
+}
+
 // Dados estáticos da Copa 2026 - Fase de Grupos
 // Fonte: FIFA / ESPN (horários de Brasília, convertidos para UTC)
 const JOGOS_COPA_2026: any[] = [
@@ -197,10 +290,17 @@ export async function GET(req: Request) {
   // Helper para verificar se é um time "a definir"
   const isADefinir = (nome: string) => nome.startsWith('A definir')
 
+  // Buscar placares do TheSportsDB
+  const placares = await buscarPlacaresSportsDB()
+
   // Preparar dados com bandeiras e status de importação
   const jogos = JOGOS_COPA_2026.map((jogo, index) => {
     const titulo = `${jogo.home} x ${jogo.away}`
     const chaveJogo = `⚽ ${titulo}|${jogo.date}`
+
+    // Buscar placar pelo nome dos times
+    const chavePlacar = `${jogo.home} x ${jogo.away}`
+    const placar = placares[chavePlacar] || null
 
     return {
       id: index + 1,
@@ -219,6 +319,10 @@ export async function GET(req: Request) {
       stadium: jogo.stadium,
       destaque: jogo.destaque || false,
       importado: jogosImportados.some(j => j.includes(titulo)),
+      // Placar (null se ainda não jogou)
+      golsHome: placar?.home ?? null,
+      golsAway: placar?.away ?? null,
+      statusJogo: placar?.status ?? 'Not Started',
     }
   })
 

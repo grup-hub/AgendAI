@@ -30,6 +30,9 @@ type Jogo = {
   stadium: string
   destaque: boolean
   importado: boolean
+  golsHome: number | null
+  golsAway: number | null
+  statusJogo: string
 }
 
 type FiltroGrupo = 'TODOS' | string
@@ -317,7 +320,7 @@ export default function Copa2026Screen({ navigation }: any) {
             </Text>
           </View>
 
-          {/* Times */}
+          {/* Times + Placar */}
           <View style={styles.timesContainer}>
             <View style={styles.timeRow}>
               <Text style={styles.timeBandeira}>{item.homeBandeira}</Text>
@@ -329,7 +332,22 @@ export default function Copa2026Screen({ navigation }: any) {
                 {item.home}
               </Text>
             </View>
-            <Text style={styles.vsText}>×</Text>
+
+            {/* Placar ou X */}
+            {item.golsHome !== null && item.golsAway !== null ? (
+              <View style={styles.placarContainer}>
+                <Text style={styles.placarTexto}>{item.golsHome} - {item.golsAway}</Text>
+                <Text style={[
+                  styles.placarStatus,
+                  item.statusJogo === 'Match Finished' ? styles.placarEncerrado : styles.placarAoVivo
+                ]}>
+                  {item.statusJogo === 'Match Finished' ? '✅ Encerrado' : '🔴 Ao vivo'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.vsText}>×</Text>
+            )}
+
             <View style={styles.timeRow}>
               <Text style={styles.timeBandeira}>{item.awayBandeira}</Text>
               <Text style={[
@@ -625,6 +643,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#9CA3AF',
+  },
+
+  // Placar
+  placarContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  placarTexto: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1F2937',
+  },
+  placarStatus: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  placarEncerrado: {
+    color: '#6B7280',
+  },
+  placarAoVivo: {
+    color: '#22C55E',
   },
 
   // Local
