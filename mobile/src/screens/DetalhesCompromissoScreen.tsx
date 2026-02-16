@@ -412,7 +412,8 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
 
               <TextInput
                 style={styles.modalInput}
-                placeholder="Email do usuário"
+                placeholder="Preencher com email do usuário"
+                placeholderTextColor="#9CA3AF"
                 value={emailCompartilhar}
                 onChangeText={setEmailCompartilhar}
                 keyboardType="email-address"

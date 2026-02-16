@@ -230,7 +230,7 @@ export default function CompartilharPage() {
           <form onSubmit={handleConvidar} className="flex flex-col sm:flex-row gap-3">
             <input
               type="email"
-              placeholder="Email do usuário"
+              placeholder="Preencher com email do usuário"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required

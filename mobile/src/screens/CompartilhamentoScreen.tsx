@@ -198,7 +198,8 @@ export default function CompartilhamentoScreen() {
               <Text style={styles.cardTitle}>Compartilhar minha agenda</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Email do usuário"
+                placeholder="Preencher com email do usuário"
+                placeholderTextColor="#9CA3AF"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"

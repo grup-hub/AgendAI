@@ -410,7 +410,7 @@ export default function EditarCompromissoPage() {
                       <form onSubmit={handleShareInterno} className="flex gap-2">
                         <input
                           type="email"
-                          placeholder="Email do usuário"
+                          placeholder="Preencher com email do usuário"
                           value={emailShare}
                           onChange={(e) => setEmailShare(e.target.value)}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
