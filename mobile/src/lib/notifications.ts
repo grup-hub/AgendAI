@@ -88,6 +88,25 @@ export async function cancelarTodosLembretes() {
   await Notifications.cancelAllScheduledNotificationsAsync()
 }
 
+// Notificar compartilhamentos pendentes novos
+export async function notificarCompartilhamentosPendentes(
+  totalPendentes: number
+): Promise<void> {
+  if (totalPendentes <= 0) return
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'AgendAI - Compartilhamento',
+      body: totalPendentes === 1
+        ? 'Você tem 1 compromisso compartilhado aguardando sua resposta'
+        : `Você tem ${totalPendentes} compromissos compartilhados aguardando sua resposta`,
+      data: { tipo: 'compartilhamento' },
+      sound: 'default',
+    },
+    trigger: null, // disparo imediato
+  })
+}
+
 // Agendar lembretes para todos os compromissos futuros
 export async function agendarLembretesCompromissos(
   compromissos: Array<{
