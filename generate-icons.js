@@ -19,26 +19,33 @@ function tag(name, attrs, children) {
   return "<" + name + a + ">" + (children || "") + "</" + name + ">";
 }
 
-function buildIconSVG(size, radius) {
+function buildIconSVG(size, radius, isAdaptive) {
   var s = size, r = radius, sc = s / 1024;
 
+  // Para adaptive icon, escalar tudo para caber na safe zone (66% central)
+  // O Android corta ~17% de cada lado com máscara circular
+  var asc = isAdaptive ? 0.75 : 1.0; // fator de escala para adaptive
+  var offsetY = 0;
+
   // Calendar dimensions
-  var calW = Math.round(540 * sc), calH = Math.round(480 * sc);
-  var calX = Math.round((s - calW) / 2), calY = Math.round(180 * sc);
-  var calR = Math.round(40 * sc), hdrH = Math.round(110 * sc);
+  var calW = Math.round(540 * sc * asc), calH = Math.round(480 * sc * asc);
+  // No adaptive, centralizar só o calendário (sem texto); no normal, manter layout com texto
+  var calX = Math.round((s - calW) / 2);
+  var calY = isAdaptive ? Math.round((s - calH) / 2 + 30 * sc) : Math.round(180 * sc);
+  var calR = Math.round(40 * sc * asc), hdrH = Math.round(110 * sc * asc);
 
   // Pegs
-  var pegW = Math.round(26 * sc), pegH = Math.round(64 * sc), pegR = Math.round(13 * sc);
-  var peg1X = Math.round(calX + 130 * sc), peg2X = Math.round(calX + calW - 130 * sc - pegW);
+  var pegW = Math.round(26 * sc * asc), pegH = Math.round(64 * sc * asc), pegR = Math.round(13 * sc * asc);
+  var peg1X = Math.round(calX + 130 * sc * asc), peg2X = Math.round(calX + calW - 130 * sc * asc - pegW);
   var pegY = Math.round(calY - pegH / 2);
 
   // Grid of dots - 4 cols x 3 rows (como dias do mes)
   var bodyTop = calY + hdrH, bodyH = calH - hdrH;
-  var gridPadX = Math.round(50 * sc), gridPadY = Math.round(36 * sc);
+  var gridPadX = Math.round(50 * sc * asc), gridPadY = Math.round(36 * sc * asc);
   var cols = 4, rows = 3;
   var cellW = (calW - gridPadX * 2) / cols;
   var cellH = (bodyH - gridPadY * 2) / rows;
-  var dotR = Math.round(18 * sc);
+  var dotR = Math.round(18 * sc * asc);
 
   var dots = "";
   for (var row = 0; row < rows; row++) {
@@ -58,21 +65,21 @@ function buildIconSVG(size, radius) {
 
   // Header month text lines
   var hl1 = tag("rect", {
-    x: Math.round(calX + 65 * sc), y: Math.round(calY + 36 * sc),
-    width: Math.round(160 * sc), height: Math.round(18 * sc),
-    rx: Math.round(9 * sc), fill: "rgba(255,255,255,0.7)"
+    x: Math.round(calX + 65 * sc * asc), y: Math.round(calY + 36 * sc * asc),
+    width: Math.round(160 * sc * asc), height: Math.round(18 * sc * asc),
+    rx: Math.round(9 * sc * asc), fill: "rgba(255,255,255,0.7)"
   });
   var hl2 = tag("rect", {
-    x: Math.round(calX + 65 * sc), y: Math.round(calY + 66 * sc),
-    width: Math.round(100 * sc), height: Math.round(14 * sc),
-    rx: Math.round(7 * sc), fill: "rgba(255,255,255,0.4)"
+    x: Math.round(calX + 65 * sc * asc), y: Math.round(calY + 66 * sc * asc),
+    width: Math.round(100 * sc * asc), height: Math.round(14 * sc * asc),
+    rx: Math.round(7 * sc * asc), fill: "rgba(255,255,255,0.4)"
   });
 
   // AI badge removed
 
   // App name text
-  var textY = Math.round(calY + calH + 90 * sc);
-  var textSz = Math.round(110 * sc);
+  var textY = Math.round(calY + calH + 70 * sc * asc);
+  var textSz = Math.round(110 * sc * asc);
   var nameText = tag("text", {
     x: Math.round(s / 2), y: textY, "text-anchor": "middle",
     "font-family": "Arial Black,Arial,sans-serif", "font-weight": "900",
@@ -114,10 +121,10 @@ function buildIconSVG(size, radius) {
   var checkCx = Math.round(calX + gridPadX + cellW * 1 + cellW / 2);
   var checkCy = Math.round(bodyTop + gridPadY + cellH * 0 + cellH / 2);
   var checkMark = tag("path", {
-    d: "M" + Math.round(checkCx - 8 * sc) + "," + checkCy +
-      " L" + Math.round(checkCx - 2 * sc) + "," + Math.round(checkCy + 6 * sc) +
-      " L" + Math.round(checkCx + 9 * sc) + "," + Math.round(checkCy - 6 * sc),
-    stroke: "white", "stroke-width": Math.round(4 * sc), fill: "none",
+    d: "M" + Math.round(checkCx - 8 * sc * asc) + "," + checkCy +
+      " L" + Math.round(checkCx - 2 * sc * asc) + "," + Math.round(checkCy + 6 * sc * asc) +
+      " L" + Math.round(checkCx + 9 * sc * asc) + "," + Math.round(checkCy - 6 * sc * asc),
+    stroke: "white", "stroke-width": Math.round(4 * sc * asc), fill: "none",
     "stroke-linecap": "round", "stroke-linejoin": "round"
   });
 
@@ -189,9 +196,9 @@ function buildFaviconSVG(size) {
 
 async function generate() {
   var tasks = [
-    { name: "icon.png", svg: buildIconSVG(1024, 180), width: 1024, height: 1024 },
-    { name: "adaptive-icon.png", svg: buildIconSVG(1024, 0), width: 1024, height: 1024 },
-    { name: "splash-icon.png", svg: buildIconSVG(1024, 180), width: 1024, height: 1024 },
+    { name: "icon.png", svg: buildIconSVG(1024, 180, false), width: 1024, height: 1024 },
+    { name: "adaptive-icon.png", svg: buildIconSVG(1024, 0, false), width: 1024, height: 1024 },
+    { name: "splash-icon.png", svg: buildIconSVG(1024, 180, false), width: 1024, height: 1024 },
     { name: "favicon.png", svg: buildFaviconSVG(64), width: 64, height: 64 }
   ];
   for (var i = 0; i < tasks.length; i++) {
