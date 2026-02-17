@@ -12,6 +12,7 @@ export default function NovoCompromissoPage() {
   const [local, setLocal] = useState('')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
+  const [urgente, setUrgente] = useState(false)
   const [lembreteMinutos, setLembreteMinutos] = useState('60')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
@@ -37,6 +38,7 @@ export default function NovoCompromissoPage() {
         DATA_INICIO: new Date(dataInicio).toISOString(),
         DATA_FIM: new Date(dataFim).toISOString(),
         ORIGEM: 'MANUAL',
+        URGENTE: urgente,
         LEMBRETE_MINUTOS: lembreteMinutos !== '0' ? lembreteMinutos : undefined,
       }),
     })
@@ -126,7 +128,7 @@ export default function NovoCompromissoPage() {
               />
             </div>
 
-            {/* Data e Hora Início */}
+            {/* Data e Hora */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="dataInicio" className="block text-sm font-medium text-gray-700 mb-2">
@@ -155,6 +157,25 @@ export default function NovoCompromissoPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+            </div>
+
+            {/* Urgente */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Urgente
+              </label>
+              <button
+                type="button"
+                onClick={() => setUrgente(!urgente)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition font-medium text-sm ${
+                  urgente
+                    ? 'bg-red-50 border-red-400 text-red-700'
+                    : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                <span>{urgente ? '🔴' : '⚪'}</span>
+                {urgente ? 'Sim, é urgente' : 'Não'}
+              </button>
             </div>
 
             {/* Lembrete */}

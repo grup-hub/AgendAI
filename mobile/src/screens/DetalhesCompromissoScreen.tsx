@@ -24,6 +24,7 @@ interface Compromisso {
   LOCAL: string | null
   STATUS: string
   ORIGEM: string
+  URGENTE?: boolean
   compartilhado?: boolean
   dono_nome?: string
   agenda_nome?: string
@@ -54,6 +55,7 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
   const [horaFim, setHoraFim] = useState(
     compromisso.DATA_FIM ? formatarHoraParaInput(compromisso.DATA_FIM) : ''
   )
+  const [urgente, setUrgente] = useState(compromisso.URGENTE || false)
 
   function formatarDataParaInput(dataISO: string) {
     const d = new Date(dataISO)
@@ -170,6 +172,7 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
         LOCAL: local.trim() || null,
         DATA_INICIO: dataInicioISO,
         DATA_FIM: dataFimISO,
+        URGENTE: urgente,
       })
       Alert.alert('Sucesso', 'Compromisso atualizado!', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -308,11 +311,18 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
               {getStatusLabel(compromisso.STATUS)}
             </Text>
           </View>
-          {compromisso.ORIGEM && (
-            <Text style={styles.origemText}>
-              via {compromisso.ORIGEM === 'APP_MOBILE' ? 'App' : compromisso.ORIGEM === 'WHATSAPP' ? 'WhatsApp' : compromisso.ORIGEM === 'COPA2026' ? '⚽ Copa 2026' : 'Web'}
-            </Text>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {compromisso.URGENTE && (
+              <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '700' }}>🔴 Urgente</Text>
+              </View>
+            )}
+            {compromisso.ORIGEM && (
+              <Text style={styles.origemText}>
+                via {compromisso.ORIGEM === 'APP_MOBILE' ? 'App' : compromisso.ORIGEM === 'WHATSAPP' ? 'WhatsApp' : compromisso.ORIGEM === 'COPA2026' ? '⚽ Copa 2026' : 'Web'}
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* Título */}
@@ -531,6 +541,22 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
               />
             </View>
             <View style={styles.col}>
+              <Text style={styles.label}>Urgente</Text>
+              <TouchableOpacity
+                style={[styles.urgenteToggle, urgente && styles.urgenteToggleAtivo]}
+                onPress={() => setUrgente(!urgente)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.urgenteToggleIcon}>{urgente ? '🔴' : '⚪'}</Text>
+                <Text style={[styles.urgenteToggleText, urgente && styles.urgenteToggleTextAtivo]}>
+                  {urgente ? 'Sim' : 'Não'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.col}>
               <Text style={styles.label}>Hora Início *</Text>
               <TextInput
                 style={styles.input}
@@ -541,9 +567,6 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
                 maxLength={5}
               />
             </View>
-          </View>
-
-          <View style={styles.row}>
             <View style={styles.col}>
               <Text style={styles.label}>Hora Fim</Text>
               <TextInput
@@ -555,16 +578,15 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
                 maxLength={5}
               />
             </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Local</Text>
-              <TextInput
-                style={styles.input}
-                value={local}
-                onChangeText={setLocal}
-                placeholder="Ex: Sala 3"
-              />
-            </View>
           </View>
+
+          <Text style={styles.label}>Local</Text>
+          <TextInput
+            style={styles.input}
+            value={local}
+            onChangeText={setLocal}
+            placeholder="Ex: Sala 3, Rua Exemplo 123"
+          />
 
           <TouchableOpacity
             style={[styles.saveBtn, salvando && styles.btnDisabled]}
@@ -586,6 +608,7 @@ export default function DetalhesCompromissoScreen({ route, navigation }: any) {
               setDataInicio(formatarDataParaInput(compromisso.DATA_INICIO))
               setHoraInicio(formatarHoraParaInput(compromisso.DATA_INICIO))
               setHoraFim(compromisso.DATA_FIM ? formatarHoraParaInput(compromisso.DATA_FIM) : '')
+              setUrgente(compromisso.URGENTE || false)
             }}
           >
             <Text style={styles.cancelEditBtnText}>Cancelar edição</Text>
@@ -781,6 +804,25 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 80 },
   row: { flexDirection: 'row', gap: 12 },
   col: { flex: 1 },
+  urgenteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  urgenteToggleAtivo: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  urgenteToggleIcon: { fontSize: 16 },
+  urgenteToggleText: { fontSize: 16, color: '#6B7280' },
+  urgenteToggleTextAtivo: { color: '#DC2626', fontWeight: '600' },
   saveBtn: {
     backgroundColor: '#2563EB',
     borderRadius: 12,

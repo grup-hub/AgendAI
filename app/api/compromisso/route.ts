@@ -185,7 +185,7 @@ export async function POST(req: Request) {
 
   // Pegar dados do body
   const body = await req.json()
-  const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, LEMBRETE_MINUTOS } = body
+  const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, LEMBRETE_MINUTOS, URGENTE } = body
 
   // Validações básicas
   if (!TITULO || !DATA_INICIO) {
@@ -219,6 +219,7 @@ export async function POST(req: Request) {
       ORIGEM: ORIGEM || 'MANUAL',
       CRIADO_POR: user.id,
       STATUS: 'ATIVO',
+      URGENTE: URGENTE === true,
     })
     .select()
     .single()
@@ -266,7 +267,7 @@ export async function PUT(req: Request) {
 
   // Pegar dados do body
   const body = await req.json()
-  const { ID_COMPROMISSO, TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, STATUS } = body
+  const { ID_COMPROMISSO, TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, STATUS, URGENTE } = body
 
   if (!ID_COMPROMISSO) {
     return NextResponse.json({ message: 'ID_COMPROMISSO é obrigatório' }, { status: 400 })
@@ -303,6 +304,7 @@ export async function PUT(req: Request) {
   if (DATA_INICIO !== undefined) updateData.DATA_INICIO = DATA_INICIO
   if (DATA_FIM !== undefined) updateData.DATA_FIM = DATA_FIM
   if (STATUS !== undefined) updateData.STATUS = STATUS
+  if (URGENTE !== undefined) updateData.URGENTE = URGENTE
 
   const { data: updated, error: updateError } = await supabaseAdmin
     .from('COMPROMISSO')

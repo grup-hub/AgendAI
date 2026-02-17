@@ -19,6 +19,7 @@ export default function NovoCompromissoScreen({ navigation }: any) {
   const [horaInicio, setHoraInicio] = useState('')
   const [horaFim, setHoraFim] = useState('')
   const [local, setLocal] = useState('')
+  const [urgente, setUrgente] = useState(false)
   const [carregando, setCarregando] = useState(false)
 
   function formatarDataInput(text: string) {
@@ -87,6 +88,7 @@ export default function NovoCompromissoScreen({ navigation }: any) {
         DATA_INICIO: dataInicioISO,
         DATA_FIM: dataFimISO,
         ORIGEM: 'APP_MOBILE',
+        URGENTE: urgente,
       })
 
       Alert.alert('Sucesso', 'Compromisso criado!', [
@@ -138,6 +140,22 @@ export default function NovoCompromissoScreen({ navigation }: any) {
               />
             </View>
             <View style={styles.col}>
+              <Text style={styles.label}>Urgente</Text>
+              <TouchableOpacity
+                style={[styles.urgenteToggle, urgente && styles.urgenteToggleAtivo]}
+                onPress={() => setUrgente(!urgente)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.urgenteToggleIcon}>{urgente ? '🔴' : '⚪'}</Text>
+                <Text style={[styles.urgenteToggleText, urgente && styles.urgenteToggleTextAtivo]}>
+                  {urgente ? 'Sim' : 'Não'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={styles.col}>
               <Text style={styles.label}>Hora Inicio *</Text>
               <TextInput
                 style={styles.input}
@@ -148,9 +166,6 @@ export default function NovoCompromissoScreen({ navigation }: any) {
                 maxLength={5}
               />
             </View>
-          </View>
-
-          <View style={styles.row}>
             <View style={styles.col}>
               <Text style={styles.label}>Hora Fim</Text>
               <TextInput
@@ -162,16 +177,15 @@ export default function NovoCompromissoScreen({ navigation }: any) {
                 maxLength={5}
               />
             </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Local</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Sala 3"
-                value={local}
-                onChangeText={setLocal}
-              />
-            </View>
           </View>
+
+          <Text style={styles.label}>Local</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: Sala 3, Rua Exemplo 123"
+            value={local}
+            onChangeText={setLocal}
+          />
 
           <TouchableOpacity
             style={[styles.button, carregando && styles.buttonDisabled]}
@@ -241,6 +255,33 @@ const styles = StyleSheet.create({
   },
   col: {
     flex: 1,
+  },
+  urgenteToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  urgenteToggleAtivo: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  urgenteToggleIcon: {
+    fontSize: 16,
+  },
+  urgenteToggleText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  urgenteToggleTextAtivo: {
+    color: '#DC2626',
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#2563EB',

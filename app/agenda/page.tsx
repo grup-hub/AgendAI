@@ -17,6 +17,7 @@ interface Compromisso {
   DATA_FIM: string
   ORIGEM: string
   STATUS: string
+  URGENTE?: boolean
   CRIADO_POR: string
   agenda_nome?: string
   dono_nome?: string
@@ -324,6 +325,7 @@ export default function AgendaPage() {
                   const hasEvents = !!(compromissosPorDia[dateKey]?.length)
                   const eventCount = compromissosPorDia[dateKey]?.length || 0
                   const hasShared = compromissosPorDia[dateKey]?.some((c) => c.compartilhado)
+                  const hasUrgente = compromissosPorDia[dateKey]?.some((c) => c.URGENTE)
 
                   return (
                     <button
@@ -340,10 +342,10 @@ export default function AgendaPage() {
                       {parseInt(dateKey.split('-')[2])}
                       {hasEvents && (
                         <div className="flex gap-0.5 mt-0.5">
-                          {/* Ponto azul (próprios) */}
+                          {/* Ponto vermelho (urgente) ou azul (normal) */}
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              isSelected ? 'bg-white' : 'bg-blue-500'
+                              isSelected ? 'bg-white' : hasUrgente ? 'bg-red-500' : 'bg-blue-500'
                             }`}
                           />
                           {/* Ponto roxo (compartilhados) — só se tiver */}

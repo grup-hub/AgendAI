@@ -32,6 +32,7 @@ interface Compromisso {
   LOCAL: string | null
   STATUS: string
   ORIGEM: string
+  URGENTE?: boolean
   ID_AGENDA: string
   compartilhado?: boolean
   dono_nome?: string
@@ -96,7 +97,7 @@ export default function AgendaScreen({ navigation }: any) {
         marks[dateKey] = { dots: [], marked: true }
       }
       marks[dateKey].dots.push({
-        color: c.compartilhado ? '#8B5CF6' : '#2563EB',
+        color: c.URGENTE ? '#EF4444' : c.compartilhado ? '#8B5CF6' : '#2563EB',
       })
     })
 
