@@ -12,10 +12,18 @@ import {
 } from 'react-native'
 import { criarCompromisso } from '../lib/api'
 
-export default function NovoCompromissoScreen({ navigation }: any) {
+export default function NovoCompromissoScreen({ navigation, route }: any) {
+  const dataParam = route?.params?.dataInicio
+  const dataInicialFormatada = dataParam
+    ? (() => {
+        const [ano, mes, dia] = dataParam.split('-')
+        return `${dia}/${mes}/${ano}`
+      })()
+    : ''
+
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [dataInicio, setDataInicio] = useState('')
+  const [dataInicio, setDataInicio] = useState(dataInicialFormatada)
   const [horaInicio, setHoraInicio] = useState('')
   const [horaFim, setHoraFim] = useState('')
   const [local, setLocal] = useState('')

@@ -351,7 +351,7 @@ export default function AgendaScreen({ navigation }: any) {
       {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('NovoCompromisso')}
+        onPress={() => navigation.navigate('NovoCompromisso', { dataInicio: selectedDate })}
         activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>
