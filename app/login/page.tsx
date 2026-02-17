@@ -103,6 +103,12 @@ export default function LoginPage() {
             />
           </div>
 
+          <div className="flex justify-end">
+            <Link href="/esqueci-senha" className="text-sm text-blue-600 hover:text-blue-700">
+              Esqueceu a senha?
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={carregando}

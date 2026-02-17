@@ -10,27 +10,51 @@ import {
   Platform,
   ScrollView,
 } from 'react-native'
-import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabase'
 
-export default function LoginScreen({ navigation }: any) {
-  const { signIn } = useAuth()
+export default function EsqueciSenhaScreen({ navigation }: any) {
   const [email, setEmail] = useState('')
-  const [senha, setSenha] = useState('')
   const [carregando, setCarregando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
 
-  async function handleLogin() {
-    if (!email || !senha) {
-      Alert.alert('Erro', 'Preencha email e senha')
+  async function handleReset() {
+    if (!email) {
+      Alert.alert('Erro', 'Preencha o email')
       return
     }
 
     setCarregando(true)
-    const { error } = await signIn(email.trim().toLowerCase(), senha)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase())
+
     setCarregando(false)
 
     if (error) {
-      Alert.alert('Erro', error)
+      Alert.alert('Erro', 'Erro ao enviar email. Verifique o endereço e tente novamente.')
+      return
     }
+
+    setEnviado(true)
+  }
+
+  if (enviado) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.successContainer}>
+          <Text style={styles.successIcon}>📧</Text>
+          <Text style={styles.successTitle}>Email enviado!</Text>
+          <Text style={styles.successText}>
+            Enviamos um link de redefinição para {email}. Verifique sua caixa de entrada e spam.
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.buttonText}>Voltar ao login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -43,11 +67,13 @@ export default function LoginScreen({ navigation }: any) {
           <Text style={styles.logo}>
             Agend<Text style={styles.logoAccent}>AI</Text>
           </Text>
-          <Text style={styles.subtitle}>Sua agenda inteligente</Text>
+          <Text style={styles.subtitle}>Recuperar senha</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.title}>Entrar</Text>
+          <Text style={styles.description}>
+            Digite seu email e enviaremos um link para redefinir sua senha.
+          </Text>
 
           <Text style={styles.label}>Email</Text>
           <TextInput
@@ -60,39 +86,21 @@ export default function LoginScreen({ navigation }: any) {
             autoCorrect={false}
           />
 
-          <Text style={styles.label}>Senha</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Sua senha"
-            value={senha}
-            onChangeText={setSenha}
-            secureTextEntry
-          />
-
-          <TouchableOpacity
-            onPress={() => navigation.navigate('EsqueciSenha')}
-            style={styles.forgotButton}
-          >
-            <Text style={styles.forgotText}>Esqueceu a senha?</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.button, carregando && styles.buttonDisabled]}
-            onPress={handleLogin}
+            onPress={handleReset}
             disabled={carregando}
           >
             <Text style={styles.buttonText}>
-              {carregando ? 'Entrando...' : 'Entrar'}
+              {carregando ? 'Enviando...' : 'Enviar link de recuperação'}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.linkButton}
-            onPress={() => navigation.navigate('Cadastro')}
+            onPress={() => navigation.goBack()}
           >
-            <Text style={styles.linkText}>
-              Não tem conta? <Text style={styles.linkBold}>Cadastre-se</Text>
-            </Text>
+            <Text style={styles.linkText}>← Voltar ao login</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -137,11 +145,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 24,
+  description: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 20,
   },
   label: {
     fontSize: 14,
@@ -181,19 +189,30 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#6B7280',
-  },
-  linkBold: {
     color: '#2563EB',
     fontWeight: '600',
   },
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 8,
-    marginTop: -8,
+  successContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
-  forgotText: {
-    fontSize: 14,
-    color: '#2563EB',
+  successIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  successText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
 })

@@ -9,6 +9,7 @@ import { registrarNotificacoes } from '../lib/notifications'
 
 import LoginScreen from '../screens/LoginScreen'
 import CadastroScreen from '../screens/CadastroScreen'
+import EsqueciSenhaScreen from '../screens/EsqueciSenhaScreen'
 import AgendaScreen from '../screens/AgendaScreen'
 import NovoCompromissoScreen from '../screens/NovoCompromissoScreen'
 import DetalhesCompromissoScreen from '../screens/DetalhesCompromissoScreen'
@@ -139,6 +140,7 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Cadastro" component={CadastroScreen} />
+      <Stack.Screen name="EsqueciSenha" component={EsqueciSenhaScreen} />
     </Stack.Navigator>
   )
 }
