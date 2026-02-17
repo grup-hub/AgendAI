@@ -83,7 +83,6 @@ jobs:
         with:
           appId: ${{ secrets.FIREBASE_APP_ID }}
           token: ${{ secrets.FIREBASE_TOKEN }}
-          groups: testers
           file: mobile/android/app/build/outputs/apk/release/app-release.apk
           releaseNotes: |
             🚀 Nova versão automática!
