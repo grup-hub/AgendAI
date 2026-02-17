@@ -1,0 +1,8 @@
+android/
+ios/
+.gradle/
+*.apk
+*.aab
+*.keystore
+agendai.apk
+dist/

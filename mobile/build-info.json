@@ -1,0 +1,52 @@
+[
+  {
+    "id": "a1295762-a983-45f9-89aa-c73ff66e1365",
+    "status": "FINISHED",
+    "platform": "ANDROID",
+    "artifacts": {
+      "buildUrl": "https://expo.dev/artifacts/eas/kUfDVCfM99Dx4qGv1HHtpK.apk",
+      "applicationArchiveUrl": "https://expo.dev/artifacts/eas/kUfDVCfM99Dx4qGv1HHtpK.apk"
+    },
+    "fingerprint": {
+      "id": "019c6161-3771-7787-968a-21cdd41f8070",
+      "hash": "923d24388c8df7d9a3ef5e09955d9cec83c73169"
+    },
+    "initiatingActor": {
+      "id": "7442c9f0-d53a-49a3-ae79-99c55832ae0d",
+      "displayName": "gruphub"
+    },
+    "logFiles": [
+      "https://job-logs.eascdn.net/production/a1295762-a983-45f9-89aa-c73ff66e1365/1771245730638-80f9b4fe-166c-4d11-9e54-f51a34d7549c.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260216%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260216T125613Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=adc290404aca108883ef2c890fa339783eee347f198b44a60bcec328a5a784ca72b659bfc7dad94d24578d592a4c59c243383a4b187ea424188f0f29548f8918da380666aac001aa054687506b79ae19d2e712e093f96ec0b3d1bea45fb5e9dc775a3f08102f8a0db10f4a48379e84d02ce388eccd63b70d40d0ef7742ff8f9634ddd423b43e89853588059e14c50f125e3338abfc31e2962142d233c0a7ddd17fce2ff54aae83f85e12c80b30bd918de12e7b5d78738461f8a9d08dd560a972d1e3ab7bf1fcbf2c8a338330f9f58afe9e97d8dc04f84d6c71563244899376e40607dcc166bb094389c68ef9f26a0286e2251861718d0c8463b4b86f7b4c362b",
+      "https://job-logs.eascdn.net/production/a1295762-a983-45f9-89aa-c73ff66e1365/1771245943338-2908e230-6a07-467d-a650-1f355d5e57a3.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260216%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260216T125613Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=519c3e2281d0fde218acd5efd54b80c5308eae41baf3c60ee78424b7b083baaa20b6bf446c3347926bc74864b69c62b025fbb9c958498fdfdf09d96ac10734712495d2ce86fe9e408cba5846f942fd3cadb8d5aba16d8743638b04a4277de2632fcfa0365320710100fe92d1b49c5a277bbba223d932307c7d45e752d7390daa0deddb550e7cad3a90d395d07033f4eed4c88a2a94b1a7e7a195bdad7be537501269f2ba6278a69093c6dee973c700391808ab98e219671a84772284ba02e8d8f5a32fbd0ab6ac29bb322df2cf55dfc283ce42383ff28d04dbaaa005cd630e68b4bdbdd0680e3a2c7341136a4a0ca78cf39181783715b49010763806887fbe44",
+      "https://job-logs.eascdn.net/production/a1295762-a983-45f9-89aa-c73ff66e1365/1771245943584-46309cd3-2ff4-448d-ad08-b1b493eac8ef.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260216%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260216T125613Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=7eb77b05764dd1f6f0621dc0736455b0a53954f348c1c71adfda33b62caa7ab5413f8320a02baf7a299464f9a8236659b86a6f871d217cd822b9475ed00389f3ce1a2626bfa58a7a3861fbd8a06903af92485311af60d27e3040d8b0cf7373efa9b36e50cbc78d5bb2340e1407688582d9f5cc98d6fc215b28d1ace82d1e6e199f33624813762a692bd3c2056e82850c7f70921e94b53aea328e5a58dc00d0d3f1ce7bcf163cdb1f5c08e068dd54a9aaa7d749fde24c067d5060a0838a045bdd6bb92c920a0c7045db5e79fe74519f14dd2bad44f4f2ad4daefb5bf775c9066207bed595f2b4cbe2f617e5285913510c0ffdd80435cd44e57513b8ffe9f4d13f",
+      "https://job-logs.eascdn.net/production/a1295762-a983-45f9-89aa-c73ff66e1365/1771245943769-fa3c7d02-2717-4960-8685-2010f0feac04.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260216%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260216T125613Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=69474161a47d39a380e9c5c5ec92821ef934d3c33355f8c73d14f9134370cddd75b372559c79b36ccdc9d756e581954ec8fe47ff1fc7f504cde17701801b4cfc521210840a9fe7bd1854fa80ef435ed0bbf4e4a65458749763daf68f65cb8d7a65a70fb7669565845a873eff4b1e36aabe83c2a3c8e4af22f24ccffd422c9bcec276a7e5a94bd7291a8462a9bf72534fae1a9a2abbbabb85fa53daa82fd4e1125433d3a8044d467543fdbf28961d12d0f1a3bed4e9998200a85b2eb7c23fcdcab3da9ae85b1d8203634b148e55df5d7bc98e473de3a7a2abc08c4e0612836e2a41d4ea350249d3d99b040dab0d5d190fd365e891e4ee88d6d4cbb6b5d3ce725b"
+    ],
+    "project": {
+      "id": "78b6cb89-1273-401b-aea2-78da498d722f",
+      "name": "agendai",
+      "slug": "agendai",
+      "ownerAccount": {
+        "id": "bc3d186a-c009-4c10-8ff3-d972b374609a",
+        "name": "gruphub"
+      }
+    },
+    "distribution": "INTERNAL",
+    "buildProfile": "preview",
+    "sdkVersion": "54.0.0",
+    "appVersion": "1.0.0",
+    "appBuildVersion": "1",
+    "gitCommitHash": "9ba105809e1a689345dbb93028c58d528cdf41e6",
+    "gitCommitMessage": "feat: Compartilhamento individual de compromisso (externo + interno)\n\n- Share externo: botão para enviar detalhes formatados com emojis via\n  WhatsApp/Telegram (mobile) ou copiar para clipboard (web)\n- Share interno: compartilhar compromisso com outro usuário AgendAI por\n  email, seguindo mesma mecânica do compartilhamento de agenda\n- Nova API /api/compartilhamento-compromisso (CRUD completo)\n- Convites de compromisso aparecem na tela Compartilhar com badge 📌\n- Ao aceitar convite, cria cópia independente na agenda do destinatário\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+    "priority": "NORMAL",
+    "createdAt": "2026-02-16T12:42:10.152Z",
+    "updatedAt": "2026-02-16T12:52:43.200Z",
+    "completedAt": "2026-02-16T12:52:32.643Z",
+    "expirationDate": "2026-03-02T12:42:10.380Z",
+    "isForIosSimulator": false,
+    "metrics": {
+      "buildWaitTime": 379,
+      "buildQueueTime": 249884,
+      "buildDuration": 371434
+    }
+  }
+]
