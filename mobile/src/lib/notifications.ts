@@ -114,6 +114,7 @@ export async function agendarLembretesCompromissos(
     TITULO: string
     DATA_INICIO: string
     STATUS: string
+    ANTECEDENCIA_LEMBRETE_MINUTOS?: number
   }>
 ) {
   // Cancela todos os lembretes existentes e reagenda
@@ -127,7 +128,9 @@ export async function agendarLembretesCompromissos(
     const dataComp = new Date(c.DATA_INICIO)
     if (dataComp <= agora) continue
 
-    // Agendar 30 min antes
-    await agendarLembrete(c.ID_COMPROMISSO, c.TITULO, c.DATA_INICIO, 30)
+    const minutosAntes = c.ANTECEDENCIA_LEMBRETE_MINUTOS ?? 30
+    if (minutosAntes === 0) continue // sem lembrete
+
+    await agendarLembrete(c.ID_COMPROMISSO, c.TITULO, c.DATA_INICIO, minutosAntes)
   }
 }

@@ -33,6 +33,7 @@ interface Compromisso {
   STATUS: string
   ORIGEM: string
   URGENTE?: boolean
+  ANTECEDENCIA_LEMBRETE_MINUTOS?: number
   ID_AGENDA: string
   compartilhado?: boolean
   dono_nome?: string
@@ -62,7 +63,13 @@ export default function AgendaScreen({ navigation }: any) {
       lastFetch.current = Date.now()
       loaded.current = true
       // Agendar notificações locais para compromissos futuros
-      agendarLembretesCompromissos(lista).catch(() => {})
+      agendarLembretesCompromissos(lista.map((c: Compromisso) => ({
+        ID_COMPROMISSO: c.ID_COMPROMISSO,
+        TITULO: c.TITULO,
+        DATA_INICIO: c.DATA_INICIO,
+        STATUS: c.STATUS,
+        ANTECEDENCIA_LEMBRETE_MINUTOS: c.ANTECEDENCIA_LEMBRETE_MINUTOS,
+      }))).catch(() => {})
     } catch (err) {
       console.error('Erro ao carregar compromissos:', err)
     } finally {
@@ -96,9 +103,15 @@ export default function AgendaScreen({ navigation }: any) {
       if (!marks[dateKey]) {
         marks[dateKey] = { dots: [], marked: true }
       }
-      marks[dateKey].dots.push({
-        color: c.URGENTE ? '#EF4444' : c.compartilhado ? '#8B5CF6' : '#2563EB',
-      })
+      if (c.URGENTE) {
+        marks[dateKey].dots.push({ color: '#EF4444' }) // vermelho: urgente
+      }
+      if (c.compartilhado) {
+        marks[dateKey].dots.push({ color: '#8B5CF6' }) // roxo: compartilhado
+      }
+      if (!c.URGENTE && !c.compartilhado) {
+        marks[dateKey].dots.push({ color: '#2563EB' }) // azul: normal
+      }
     })
 
     // Marcar dia selecionado

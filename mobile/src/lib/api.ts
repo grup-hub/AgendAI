@@ -49,6 +49,12 @@ export async function criarCompromisso(dados: {
   DATA_INICIO: string
   DATA_FIM: string
   ORIGEM?: string
+  URGENTE?: boolean
+  ANTECEDENCIA_LEMBRETE_MINUTOS?: number
+  RECORRENCIA_TIPO?: 'DIARIA' | 'SEMANAL' | 'MENSAL' | 'PERSONALIZADA' | null
+  RECORRENCIA_INTERVALO?: number | null
+  RECORRENCIA_DIAS_SEMANA?: number[] | null
+  RECORRENCIA_FIM?: string | null
 }) {
   const headers = await getAuthHeaders()
   const response = await fetch(`${API_BASE_URL}/api/compromisso`, {
@@ -74,6 +80,8 @@ export async function atualizarCompromisso(dados: {
   DATA_INICIO?: string
   DATA_FIM?: string
   STATUS?: string
+  URGENTE?: boolean
+  ANTECEDENCIA_LEMBRETE_MINUTOS?: number
 }) {
   const headers = await getAuthHeaders()
   const response = await fetch(`${API_BASE_URL}/api/compromisso`, {

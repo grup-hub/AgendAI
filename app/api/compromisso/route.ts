@@ -62,6 +62,13 @@ export async function GET(req: Request) {
       DATA_FIM,
       ORIGEM,
       STATUS,
+      URGENTE,
+      ANTECEDENCIA_LEMBRETE_MINUTOS,
+      RECORRENCIA_TIPO,
+      RECORRENCIA_INTERVALO,
+      RECORRENCIA_DIAS_SEMANA,
+      RECORRENCIA_FIM,
+      ID_COMPROMISSO_ORIGEM,
       CRIADO_POR,
       DATA_CADASTRO,
       LEMBRETE(ID_LEMBRETE, TIPO, ANTECEDENCIA_MINUTOS, ENVIADO)
@@ -124,6 +131,13 @@ export async function GET(req: Request) {
           DATA_FIM,
           ORIGEM,
           STATUS,
+          URGENTE,
+          ANTECEDENCIA_LEMBRETE_MINUTOS,
+          RECORRENCIA_TIPO,
+          RECORRENCIA_INTERVALO,
+          RECORRENCIA_DIAS_SEMANA,
+          RECORRENCIA_FIM,
+          ID_COMPROMISSO_ORIGEM,
           CRIADO_POR,
           DATA_CADASTRO,
           LEMBRETE(ID_LEMBRETE, TIPO, ANTECEDENCIA_MINUTOS, ENVIADO)
@@ -185,7 +199,11 @@ export async function POST(req: Request) {
 
   // Pegar dados do body
   const body = await req.json()
-  const { TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, LEMBRETE_MINUTOS, URGENTE } = body
+  const {
+    TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, ORIGEM, URGENTE,
+    ANTECEDENCIA_LEMBRETE_MINUTOS,
+    RECORRENCIA_TIPO, RECORRENCIA_INTERVALO, RECORRENCIA_DIAS_SEMANA, RECORRENCIA_FIM,
+  } = body
 
   // Validações básicas
   if (!TITULO || !DATA_INICIO) {
@@ -206,7 +224,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Agenda não encontrada' }, { status: 404 })
   }
 
-  // Criar compromisso (via admin para bypassar RLS)
+  const antecedenciaMinutos = ANTECEDENCIA_LEMBRETE_MINUTOS ?? 30
+
+  // Criar compromisso principal
   const { data: compromisso, error: compromissoError } = await supabaseAdmin
     .from('COMPROMISSO')
     .insert({
@@ -220,6 +240,11 @@ export async function POST(req: Request) {
       CRIADO_POR: user.id,
       STATUS: 'ATIVO',
       URGENTE: URGENTE === true,
+      ANTECEDENCIA_LEMBRETE_MINUTOS: antecedenciaMinutos,
+      RECORRENCIA_TIPO: RECORRENCIA_TIPO || null,
+      RECORRENCIA_INTERVALO: RECORRENCIA_INTERVALO || null,
+      RECORRENCIA_DIAS_SEMANA: RECORRENCIA_DIAS_SEMANA ? JSON.stringify(RECORRENCIA_DIAS_SEMANA) : null,
+      RECORRENCIA_FIM: RECORRENCIA_FIM || null,
     })
     .select()
     .single()
@@ -228,8 +253,73 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: compromissoError.message }, { status: 400 })
   }
 
+  // Gerar compromissos filhos da recorrência
+  if (compromisso && RECORRENCIA_TIPO) {
+    try {
+      const dataInicial = new Date(DATA_INICIO)
+      const dataFimOriginal = new Date(DATA_FIM || DATA_INICIO)
+      const duracaoMs = dataFimOriginal.getTime() - dataInicial.getTime()
+      const limite = RECORRENCIA_FIM
+        ? new Date(RECORRENCIA_FIM)
+        : new Date(dataInicial.getTime() + 365 * 24 * 60 * 60 * 1000) // máx 12 meses
+
+      const filhos: any[] = []
+      const dataAtual = new Date(dataInicial)
+
+      while (filhos.length < 365) {
+        // Avançar para próxima ocorrência
+        if (RECORRENCIA_TIPO === 'DIARIA') {
+          dataAtual.setDate(dataAtual.getDate() + 1)
+        } else if (RECORRENCIA_TIPO === 'SEMANAL') {
+          // Avança 1 dia e verifica se é um dos dias selecionados
+          dataAtual.setDate(dataAtual.getDate() + 1)
+          const diasSemana: number[] = Array.isArray(RECORRENCIA_DIAS_SEMANA) ? RECORRENCIA_DIAS_SEMANA : []
+          // Pular dias que não estão na lista
+          let tentativas = 0
+          while (!diasSemana.includes(dataAtual.getDay()) && tentativas < 7) {
+            dataAtual.setDate(dataAtual.getDate() + 1)
+            tentativas++
+          }
+          if (!diasSemana.includes(dataAtual.getDay())) break
+        } else if (RECORRENCIA_TIPO === 'MENSAL') {
+          dataAtual.setMonth(dataAtual.getMonth() + 1)
+        } else if (RECORRENCIA_TIPO === 'PERSONALIZADA') {
+          const intervalo = parseInt(RECORRENCIA_INTERVALO) || 15
+          dataAtual.setDate(dataAtual.getDate() + intervalo)
+        }
+
+        if (dataAtual > limite) break
+
+        const dataFilhoInicio = new Date(dataAtual)
+        const dataFilhoFim = new Date(dataAtual.getTime() + duracaoMs)
+
+        filhos.push({
+          ID_AGENDA: agenda.ID_AGENDA,
+          TITULO,
+          DESCRICAO: DESCRICAO || null,
+          LOCAL: LOCAL || null,
+          DATA_INICIO: dataFilhoInicio.toISOString(),
+          DATA_FIM: dataFilhoFim.toISOString(),
+          ORIGEM: ORIGEM || 'MANUAL',
+          CRIADO_POR: user.id,
+          STATUS: 'ATIVO',
+          URGENTE: URGENTE === true,
+          ANTECEDENCIA_LEMBRETE_MINUTOS: antecedenciaMinutos,
+          RECORRENCIA_TIPO: RECORRENCIA_TIPO,
+          ID_COMPROMISSO_ORIGEM: compromisso.ID_COMPROMISSO,
+        })
+      }
+
+      if (filhos.length > 0) {
+        await supabaseAdmin.from('COMPROMISSO').insert(filhos)
+      }
+    } catch {
+      // Não bloqueia se geração dos filhos falhar
+    }
+  }
+
   // Criar lembrete WhatsApp automaticamente se o usuário tem WhatsApp ativado
-  if (compromisso) {
+  if (compromisso && antecedenciaMinutos > 0) {
     try {
       const { data: dispositivo } = await supabaseAdmin
         .from('DISPOSITIVO_PUSH')
@@ -240,11 +330,10 @@ export async function POST(req: Request) {
         .single()
 
       if (dispositivo) {
-        const minutos = LEMBRETE_MINUTOS ? parseInt(LEMBRETE_MINUTOS) : 60
         await supabaseAdmin.from('LEMBRETE').insert({
           ID_COMPROMISSO: compromisso.ID_COMPROMISSO,
           TIPO: 'WHATSAPP',
-          ANTECEDENCIA_MINUTOS: minutos > 0 ? minutos : 60,
+          ANTECEDENCIA_MINUTOS: antecedenciaMinutos,
           ENVIADO: false,
         })
       }
@@ -267,7 +356,7 @@ export async function PUT(req: Request) {
 
   // Pegar dados do body
   const body = await req.json()
-  const { ID_COMPROMISSO, TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, STATUS, URGENTE } = body
+  const { ID_COMPROMISSO, TITULO, DESCRICAO, LOCAL, DATA_INICIO, DATA_FIM, STATUS, URGENTE, ANTECEDENCIA_LEMBRETE_MINUTOS } = body
 
   if (!ID_COMPROMISSO) {
     return NextResponse.json({ message: 'ID_COMPROMISSO é obrigatório' }, { status: 400 })
@@ -305,6 +394,7 @@ export async function PUT(req: Request) {
   if (DATA_FIM !== undefined) updateData.DATA_FIM = DATA_FIM
   if (STATUS !== undefined) updateData.STATUS = STATUS
   if (URGENTE !== undefined) updateData.URGENTE = URGENTE
+  if (ANTECEDENCIA_LEMBRETE_MINUTOS !== undefined) updateData.ANTECEDENCIA_LEMBRETE_MINUTOS = ANTECEDENCIA_LEMBRETE_MINUTOS
 
   const { data: updated, error: updateError } = await supabaseAdmin
     .from('COMPROMISSO')
