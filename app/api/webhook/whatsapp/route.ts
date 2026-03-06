@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server'
 import { normalizePhone } from '@/lib/whatsapp/phone'
 import { sendTextMessage } from '@/lib/whatsapp/sender'
 import { parseCompromisso, getHelpMessage, getConfirmationMessage } from '@/lib/whatsapp/parser'
-import { WHATSAPP_VERIFY_TOKEN } from '@/lib/whatsapp/config'
-
 export const dynamic = 'force-dynamic'
 
 /**
@@ -16,8 +14,9 @@ export async function GET(req: Request) {
   const mode = url.searchParams.get('hub.mode')
   const token = url.searchParams.get('hub.verify_token')
   const challenge = url.searchParams.get('hub.challenge')
+  const verifyToken = (process.env.WHATSAPP_VERIFY_TOKEN || '').trim()
 
-  if (mode === 'subscribe' && token === WHATSAPP_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token === verifyToken) {
     // Retorna o challenge como texto plano (Meta exige isso)
     return new Response(challenge, { status: 200 })
   }

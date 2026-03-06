@@ -6,14 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Switch,
 } from 'react-native'
 import { criarCompromisso } from '../lib/api'
+import DateWheelPickerModal from '../components/DateWheelPickerModal'
+import TimeWheelPickerModal from '../components/TimeWheelPickerModal'
+import ConfirmDialog from '../components/ConfirmDialog'
 
-type RecorrenciaTipo = 'DIARIA' | 'SEMANAL' | 'MENSAL' | 'PERSONALIZADA'
+type RecorrenciaTipo = 'SEMANAL' | 'MENSAL' | 'PERSONALIZADA'
 
 const OPCOES_LEMBRETE = [
   { label: 'Sem lembrete', value: 0 },
@@ -34,22 +38,47 @@ const DIAS_SEMANA = [
 ]
 
 export default function NovoCompromissoScreen({ navigation, route }: any) {
+  // Se veio com data pré-selecionada da tela de agenda (ex: "2026-02-21")
   const dataParam = route?.params?.dataInicio
-  const dataInicialFormatada = dataParam
+  const dataInicial = dataParam
     ? (() => {
         const [ano, mes, dia] = dataParam.split('-')
-        return `${dia}/${mes}/${ano}`
+        return { dia: parseInt(dia), mes: parseInt(mes) - 1, ano: parseInt(ano) }
       })()
-    : ''
+    : (() => {
+        const hoje = new Date()
+        return { dia: hoje.getDate(), mes: hoje.getMonth(), ano: hoje.getFullYear() }
+      })()
 
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [dataInicio, setDataInicio] = useState(dataInicialFormatada)
-  const [horaInicio, setHoraInicio] = useState('')
-  const [horaFim, setHoraFim] = useState('')
   const [local, setLocal] = useState('')
-  const [urgente, setUrgente] = useState(false)
+  const [importancia, setImportancia] = useState<0 | 1 | 2 | 3>(0) // 0=sem, 1=baixa, 2=média, 3=alta
   const [carregando, setCarregando] = useState(false)
+
+  type AlertCfg = { type?: 'success'|'error'|'info'|'warning'; title: string; message: string; onConfirm?: () => void; cancelLabel?: string; confirmLabel?: string }
+  const [alertCfg, setAlertCfg] = useState<AlertCfg | null>(null)
+  function showAlert(cfg: AlertCfg) { setAlertCfg(cfg) }
+  const [mapaEndereco, setMapaEndereco] = useState<string | null>(null)
+
+  // Data via picker (substitui dataInicio string)
+  const [pickerDia, setPickerDia] = useState(dataInicial.dia)
+  const [pickerMes, setPickerMes] = useState(dataInicial.mes)  // 0–11
+  const [pickerAno, setPickerAno] = useState(dataInicial.ano)
+
+  // Hora início via picker (substitui horaInicio string)
+  const [pickerHIh, setPickerHIh] = useState(8)
+  const [pickerHIm, setPickerHIm] = useState(0)
+  const [horaInicioDefinida, setHoraInicioDefinida] = useState(false)
+
+  // Hora fim via picker (substitui horaFim string)
+  const [pickerHFh, setPickerHFh] = useState<number | null>(null)
+  const [pickerHFm, setPickerHFm] = useState<number | null>(null)
+
+  // Visibilidade dos modais
+  const [mostrarPickerData, setMostrarPickerData] = useState(false)
+  const [mostrarPickerHoraInicio, setMostrarPickerHoraInicio] = useState(false)
+  const [mostrarPickerHoraFim, setMostrarPickerHoraFim] = useState(false)
 
   // Lembrete
   const [lembrete, setLembrete] = useState(30)
@@ -59,21 +88,8 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
   const [recorrenciaTipo, setRecorrenciaTipo] = useState<RecorrenciaTipo>('SEMANAL')
   const [recorrenciaDiasSemana, setRecorrenciaDiasSemana] = useState<number[]>([])
   const [recorrenciaIntervalo, setRecorrenciaIntervalo] = useState('15')
-  const [recorrenciaFim, setRecorrenciaFim] = useState('')
 
-  function formatarDataInput(text: string) {
-    const nums = text.replace(/\D/g, '')
-    if (nums.length <= 2) return nums
-    if (nums.length <= 4) return `${nums.slice(0, 2)}/${nums.slice(2)}`
-    return `${nums.slice(0, 2)}/${nums.slice(2, 4)}/${nums.slice(4, 8)}`
-  }
-
-  function formatarHoraInput(text: string) {
-    const nums = text.replace(/\D/g, '')
-    if (nums.length <= 2) return nums
-    return `${nums.slice(0, 2)}:${nums.slice(2, 4)}`
-  }
-
+  // Helpers de parsing — INTOCADOS
   function parseDataHora(data: string, hora: string): string | null {
     const partes = data.split('/')
     if (partes.length !== 3) return null
@@ -107,42 +123,62 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
     return new Date(anoNum, mesNum, diaNum).toISOString().split('T')[0]
   }
 
+  function abrirMapa(endereco: string) {
+    setMapaEndereco(endereco)
+  }
+
   function toggleDiaSemana(dia: number) {
     setRecorrenciaDiasSemana(prev =>
       prev.includes(dia) ? prev.filter(d => d !== dia) : [...prev, dia]
     )
   }
 
+  // Helpers de display
+  const dataStr = `${String(pickerDia).padStart(2, '0')}/${String(pickerMes + 1).padStart(2, '0')}/${pickerAno}`
+  const horaIStr = `${String(pickerHIh).padStart(2, '0')}:${String(pickerHIm).padStart(2, '0')}`
+  const horaFStr = pickerHFh !== null
+    ? `${String(pickerHFh).padStart(2, '0')}:${String(pickerHFm ?? 0).padStart(2, '0')}`
+    : null
+
+  // Próximas datas para dicas de recorrência
+  const fmt = (d: Date) =>
+    `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+  const proximasMensal = Array.from({length: 3}, (_, i) => {
+    const d = new Date(pickerAno, pickerMes + i + 1, pickerDia)
+    return fmt(d)
+  }).join(' • ')
+  const intervaloNum = parseInt(recorrenciaIntervalo) || 0
+  const proximasPersonalizada = intervaloNum > 0 ? Array.from({length: 3}, (_, i) => {
+    const d = new Date(pickerAno, pickerMes, pickerDia)
+    d.setDate(d.getDate() + intervaloNum * (i + 1))
+    return fmt(d)
+  }).join(' • ') : ''
+
   async function handleSalvar() {
     if (!titulo.trim()) {
-      Alert.alert('Erro', 'O título é obrigatório')
+      showAlert({ type: 'error', title: 'Erro', message: 'O título é obrigatório' })
       return
     }
-    if (!dataInicio || !horaInicio) {
-      Alert.alert('Erro', 'Data e hora de início são obrigatórios')
+    if (!horaInicioDefinida) {
+      showAlert({ type: 'error', title: 'Erro', message: 'Hora de início é obrigatória' })
       return
     }
 
-    const dataInicioISO = parseDataHora(dataInicio, horaInicio)
+    const dataInicioISO = parseDataHora(dataStr, horaIStr)
     if (!dataInicioISO) {
-      Alert.alert('Erro', 'Data ou hora inválida. Use DD/MM/AAAA e HH:MM')
+      showAlert({ type: 'error', title: 'Erro', message: 'Data ou hora inválida' })
       return
     }
 
     if (recorrenciaAtiva && recorrenciaTipo === 'SEMANAL' && recorrenciaDiasSemana.length === 0) {
-      Alert.alert('Erro', 'Selecione pelo menos um dia da semana para a recorrência')
+      showAlert({ type: 'error', title: 'Erro', message: 'Selecione pelo menos um dia da semana para a recorrência' })
       return
     }
 
     let dataFimISO = dataInicioISO
-    if (horaFim) {
-      const parsed = parseDataHora(dataInicio, horaFim)
+    if (horaFStr) {
+      const parsed = parseDataHora(dataStr, horaFStr)
       if (parsed) dataFimISO = parsed
-    }
-
-    let recorrenciaFimISO: string | null = null
-    if (recorrenciaAtiva && recorrenciaFim) {
-      recorrenciaFimISO = parseDataSemHora(recorrenciaFim)
     }
 
     setCarregando(true)
@@ -154,13 +190,13 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
         DATA_INICIO: dataInicioISO,
         DATA_FIM: dataFimISO,
         ORIGEM: 'APP_MOBILE',
-        URGENTE: urgente,
+        IMPORTANCIA: importancia > 0 ? importancia : null,
         ANTECEDENCIA_LEMBRETE_MINUTOS: lembrete,
         ...(recorrenciaAtiva ? {
           RECORRENCIA_TIPO: recorrenciaTipo,
           RECORRENCIA_INTERVALO: recorrenciaTipo === 'PERSONALIZADA' ? parseInt(recorrenciaIntervalo) || 15 : null,
           RECORRENCIA_DIAS_SEMANA: recorrenciaTipo === 'SEMANAL' ? recorrenciaDiasSemana : null,
-          RECORRENCIA_FIM: recorrenciaFimISO,
+          RECORRENCIA_FIM: null,
         } : {
           RECORRENCIA_TIPO: null,
           RECORRENCIA_INTERVALO: null,
@@ -169,11 +205,9 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
         }),
       })
 
-      Alert.alert('Sucesso', 'Compromisso criado!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ])
+      showAlert({ type: 'success', title: 'Sucesso', message: 'Compromisso criado!', onConfirm: () => navigation.goBack() })
     } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao criar compromisso')
+      showAlert({ type: 'error', title: 'Erro', message: err.message || 'Erro ao criar compromisso' })
     } finally {
       setCarregando(false)
     }
@@ -205,65 +239,90 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
             textAlignVertical="top"
           />
 
+          {/* Linha: Data + seletor de importância */}
           <View style={styles.row}>
             <View style={styles.col}>
               <Text style={styles.label}>Data *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="DD/MM/AAAA"
-                value={dataInicio}
-                onChangeText={(t) => setDataInicio(formatarDataInput(t))}
-                keyboardType="numeric"
-                maxLength={10}
-              />
-            </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Urgente</Text>
               <TouchableOpacity
-                style={[styles.urgenteToggle, urgente && styles.urgenteToggleAtivo]}
-                onPress={() => setUrgente(!urgente)}
+                style={styles.pickerButton}
+                onPress={() => setMostrarPickerData(true)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.urgenteToggleIcon}>{urgente ? '🔴' : '⚪'}</Text>
-                <Text style={[styles.urgenteToggleText, urgente && styles.urgenteToggleTextAtivo]}>
-                  {urgente ? 'Sim' : 'Não'}
+                <Text style={styles.pickerButtonText}>📅 {dataStr}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.col}>
+              <Text style={styles.label}>Importância</Text>
+              <View style={styles.importanciaRow}>
+                {([1, 2, 3] as const).map((nivel) => {
+                  const cores = { 1: '#2563EB', 2: '#EAB308', 3: '#EF4444' }
+                  const ativo = importancia === nivel
+                  return (
+                    <TouchableOpacity
+                      key={nivel}
+                      style={[
+                        styles.importanciaBtn,
+                        ativo && { backgroundColor: cores[nivel], borderColor: cores[nivel] },
+                      ]}
+                      onPress={() => setImportancia(ativo ? 0 : nivel)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.importanciaBtnText, ativo && { color: '#FFFFFF' }]}>
+                        {'●'.repeat(nivel)}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* Linha: Hora Início + Hora Fim */}
+          <View style={styles.row}>
+            <View style={styles.col}>
+              <Text style={styles.label}>Hora Início *</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setMostrarPickerHoraInicio(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pickerButtonText, !horaInicioDefinida && styles.pickerPlaceholder]}>
+                  🕐 {horaInicioDefinida ? horaIStr : '--:--'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.col}>
+              <Text style={styles.label}>Hora Fim</Text>
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setMostrarPickerHoraFim(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pickerButtonText, pickerHFh === null && styles.pickerPlaceholder]}>
+                  🕐 {horaFStr ?? '--:--'}
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Hora Início *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="HH:MM"
-                value={horaInicio}
-                onChangeText={(t) => setHoraInicio(formatarHoraInput(t))}
-                keyboardType="numeric"
-                maxLength={5}
-              />
-            </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Hora Fim</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="HH:MM"
-                value={horaFim}
-                onChangeText={(t) => setHoraFim(formatarHoraInput(t))}
-                keyboardType="numeric"
-                maxLength={5}
-              />
-            </View>
-          </View>
-
           <Text style={styles.label}>Local</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ex: Sala 3, Rua Exemplo 123"
-            value={local}
-            onChangeText={setLocal}
-          />
+          <View style={styles.localRow}>
+            <TextInput
+              style={[styles.input, styles.localInput]}
+              placeholder="Ex: Sala 3, Rua Exemplo 123"
+              value={local}
+              onChangeText={setLocal}
+            />
+            {local.trim() !== '' && (
+              <TouchableOpacity
+                onPress={() => abrirMapa(local.trim())}
+                style={styles.mapaBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.mapaBtnText}>🗺️</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* ====== LEMBRETE ====== */}
           <Text style={styles.sectionTitle}>🔔 Lembrete</Text>
@@ -298,7 +357,7 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
               {/* Tipo de recorrência */}
               <Text style={styles.subLabel}>Frequência</Text>
               <View style={styles.tipoGrid}>
-                {(['DIARIA', 'SEMANAL', 'MENSAL', 'PERSONALIZADA'] as RecorrenciaTipo[]).map((tipo) => (
+                {(['SEMANAL', 'MENSAL', 'PERSONALIZADA'] as RecorrenciaTipo[]).map((tipo) => (
                   <TouchableOpacity
                     key={tipo}
                     style={[styles.tipoBtn, recorrenciaTipo === tipo && styles.tipoBtnAtivo]}
@@ -306,11 +365,19 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.tipoBtnText, recorrenciaTipo === tipo && styles.tipoBtnTextAtivo]}>
-                      {tipo === 'DIARIA' ? 'Diária' : tipo === 'SEMANAL' ? 'Semanal' : tipo === 'MENSAL' ? 'Mensal' : 'A cada X dias'}
+                      {tipo === 'SEMANAL' ? 'Semanal' : tipo === 'MENSAL' ? 'Mensal' : 'A cada X dias'}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Dica contextual */}
+              {recorrenciaTipo === 'MENSAL' && (
+                <Text style={styles.recorrenciaDica}>
+                  📅 Vai repetir todo dia {pickerDia} de cada mês{'\n'}
+                  Próximas: {proximasMensal}
+                </Text>
+              )}
 
               {/* Dias da semana */}
               {recorrenciaTipo === 'SEMANAL' && (
@@ -345,19 +412,15 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
                     keyboardType="numeric"
                     maxLength={3}
                   />
+                  {intervaloNum > 0 && (
+                    <Text style={styles.recorrenciaDica}>
+                      📅 Vai repetir a cada {recorrenciaIntervalo} dias{'\n'}
+                      Próximas: {proximasPersonalizada}
+                    </Text>
+                  )}
                 </>
               )}
 
-              {/* Data de fim */}
-              <Text style={styles.subLabel}>Repetir até (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="DD/MM/AAAA"
-                value={recorrenciaFim}
-                onChangeText={(t) => setRecorrenciaFim(formatarDataInput(t))}
-                keyboardType="numeric"
-                maxLength={10}
-              />
             </View>
           )}
 
@@ -379,6 +442,73 @@ export default function NovoCompromissoScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* ===== MODAIS DE PICKER ===== */}
+      <DateWheelPickerModal
+        visible={mostrarPickerData}
+        dia={pickerDia}
+        mes={pickerMes}
+        ano={pickerAno}
+        onConfirm={(dia, mes, ano) => {
+          setPickerDia(dia)
+          setPickerMes(mes)
+          setPickerAno(ano)
+        }}
+        onClose={() => setMostrarPickerData(false)}
+      />
+
+      <TimeWheelPickerModal
+        visible={mostrarPickerHoraInicio}
+        hora={pickerHIh}
+        minuto={pickerHIm}
+        titulo="Hora de Início"
+        onConfirm={(hora, minuto) => {
+          setPickerHIh(hora)
+          setPickerHIm(minuto)
+          setHoraInicioDefinida(true)
+        }}
+        onClose={() => setMostrarPickerHoraInicio(false)}
+      />
+
+      <TimeWheelPickerModal
+        visible={mostrarPickerHoraFim}
+        hora={pickerHFh ?? pickerHIh}
+        minuto={pickerHFm ?? pickerHIm}
+        titulo="Hora de Fim"
+        onConfirm={(hora, minuto) => {
+          setPickerHFh(hora)
+          setPickerHFm(minuto)
+        }}
+        onClose={() => setMostrarPickerHoraFim(false)}
+      />
+
+      {/* Alertas modernos */}
+      {alertCfg && (
+        <ConfirmDialog
+          visible={true}
+          type={alertCfg.type}
+          title={alertCfg.title}
+          message={alertCfg.message}
+          confirmLabel={alertCfg.confirmLabel}
+          cancelLabel={alertCfg.cancelLabel}
+          onConfirm={() => { setAlertCfg(null); alertCfg.onConfirm?.() }}
+          onCancel={() => setAlertCfg(null)}
+        />
+      )}
+
+      {/* Diálogo de mapa */}
+      {mapaEndereco && (
+        <ConfirmDialog
+          visible={true}
+          type="info"
+          title="Abrir no mapa"
+          message={mapaEndereco}
+          confirmLabel="Google Maps"
+          cancelLabel="Waze"
+          onConfirm={() => { Linking.openURL(`https://maps.google.com/maps?q=${encodeURIComponent(mapaEndereco)}`); setMapaEndereco(null) }}
+          onCancel={() => { Linking.openURL(`https://waze.com/ul?q=${encodeURIComponent(mapaEndereco)}&navigate=yes`); setMapaEndereco(null) }}
+        />
+      )}
     </KeyboardAvoidingView>
   )
 }
@@ -430,9 +560,8 @@ const styles = StyleSheet.create({
   col: {
     flex: 1,
   },
-  urgenteToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Picker button (substitui TextInput de data/hora)
+  pickerButton: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -440,22 +569,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 16,
-    gap: 8,
+    justifyContent: 'center',
   },
-  urgenteToggleAtivo: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#EF4444',
+  pickerButtonText: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '500',
   },
-  urgenteToggleIcon: {
-    fontSize: 16,
+  pickerPlaceholder: {
+    color: '#9CA3AF',
+    fontWeight: '400',
   },
-  urgenteToggleText: {
-    fontSize: 16,
-    color: '#6B7280',
+  importanciaRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 16,
   },
-  urgenteToggleTextAtivo: {
-    color: '#DC2626',
-    fontWeight: '600',
+  importanciaBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
+  },
+  importanciaBtnText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 
   // Seção
@@ -518,6 +661,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
+  recorrenciaDica: {
+    fontSize: 13,
+    color: '#2563EB',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
   tipoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -547,13 +700,14 @@ const styles = StyleSheet.create({
   },
   diasGrid: {
     flexDirection: 'row',
-    gap: 6,
+    flexWrap: 'wrap',
+    gap: 5,
     marginBottom: 16,
   },
   diaBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     backgroundColor: '#FFFFFF',
@@ -571,6 +725,28 @@ const styles = StyleSheet.create({
   },
   diaBtnTextAtivo: {
     color: '#FFFFFF',
+  },
+
+  // Campo Local com botão mapa
+  localRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  localInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  mapaBtn: {
+    marginLeft: 8,
+    padding: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  mapaBtnText: {
+    fontSize: 20,
   },
 
   // Botões

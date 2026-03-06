@@ -7,18 +7,23 @@ const API_BASE_URL = 'https://sistema-agendai.vercel.app'
 // const API_BASE_URL = 'http://192.168.X.X:3000'
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  // Primeiro tenta refreshar a sessão para garantir token válido
-  const { data: { session }, error } = await supabase.auth.refreshSession()
+  // Pega sessão existente sem forçar refresh
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (error || !session?.access_token) {
-    // Fallback: tenta pegar sessão existente
-    const { data: { session: existingSession } } = await supabase.auth.getSession()
-    if (!existingSession?.access_token) {
-      throw new Error('Usuário não autenticado')
-    }
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${existingSession.access_token}`,
+  if (!session?.access_token) {
+    throw new Error('Usuário não autenticado')
+  }
+
+  // Só faz refresh se o token expira nos próximos 60 segundos
+  const expiresAt = session.expires_at ?? 0
+  const agora = Math.floor(Date.now() / 1000)
+  if (expiresAt - agora < 60) {
+    const { data: { session: refreshed }, error } = await supabase.auth.refreshSession()
+    if (!error && refreshed?.access_token) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${refreshed.access_token}`,
+      }
     }
   }
 
@@ -50,8 +55,9 @@ export async function criarCompromisso(dados: {
   DATA_FIM: string
   ORIGEM?: string
   URGENTE?: boolean
+  IMPORTANCIA?: number | null
   ANTECEDENCIA_LEMBRETE_MINUTOS?: number
-  RECORRENCIA_TIPO?: 'DIARIA' | 'SEMANAL' | 'MENSAL' | 'PERSONALIZADA' | null
+  RECORRENCIA_TIPO?: 'SEMANAL' | 'MENSAL' | 'PERSONALIZADA' | null
   RECORRENCIA_INTERVALO?: number | null
   RECORRENCIA_DIAS_SEMANA?: number[] | null
   RECORRENCIA_FIM?: string | null
@@ -81,6 +87,7 @@ export async function atualizarCompromisso(dados: {
   DATA_FIM?: string
   STATUS?: string
   URGENTE?: boolean
+  IMPORTANCIA?: number | null
   ANTECEDENCIA_LEMBRETE_MINUTOS?: number
 }) {
   const headers = await getAuthHeaders()
@@ -98,9 +105,10 @@ export async function atualizarCompromisso(dados: {
   return response.json()
 }
 
-export async function deletarCompromisso(id: string) {
+export async function deletarCompromisso(id: string, excluirSerie = false) {
   const headers = await getAuthHeaders()
-  const response = await fetch(`${API_BASE_URL}/api/compromisso?id=${id}`, {
+  const params = excluirSerie ? `?id=${id}&serie=true` : `?id=${id}`
+  const response = await fetch(`${API_BASE_URL}/api/compromisso${params}`, {
     method: 'DELETE',
     headers,
   })
@@ -176,12 +184,12 @@ export async function removerCompartilhamento(id: string) {
 
 // ====== COMPARTILHAMENTO DE COMPROMISSO ======
 
-export async function compartilharCompromisso(idCompromisso: string, email: string) {
+export async function compartilharCompromisso(idCompromisso: string, email: string, permissao?: 'VISUALIZAR' | 'EDITAR') {
   const headers = await getAuthHeaders()
   const response = await fetch(`${API_BASE_URL}/api/compartilhamento-compromisso`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ id_compromisso: idCompromisso, email }),
+    body: JSON.stringify({ id_compromisso: idCompromisso, email, permissao: permissao || 'VISUALIZAR' }),
   })
 
   if (!response.ok) {
@@ -220,6 +228,81 @@ export async function responderCompartilhamentoCompromisso(id: string, status: '
   return response.json()
 }
 
+export async function removerCompartilhamentoCompromisso(id: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compartilhamento-compromisso?id=${id}`, {
+    method: 'DELETE',
+    headers,
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao cancelar compartilhamento')
+  }
+
+  return response.json()
+}
+
+// ====== ARQUIVADOS ======
+
+export async function arquivarCompromisso(id: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compromisso`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ ID_COMPROMISSO: id, ARQUIVADO: true }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao arquivar compromisso')
+  }
+
+  return response.json()
+}
+
+export async function listarArquivados() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compromisso?arquivados=true`, { headers })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao buscar arquivados')
+  }
+
+  return response.json()
+}
+
+export async function excluirCompromissoArquivado(id: string) {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compromisso?id=${id}`, {
+    method: 'DELETE',
+    headers,
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao excluir compromisso')
+  }
+
+  return response.json()
+}
+
+export async function excluirTodosArquivados() {
+  const headers = await getAuthHeaders()
+  const response = await fetch(`${API_BASE_URL}/api/compromisso?todos=true`, {
+    method: 'DELETE',
+    headers,
+  })
+
+  if (!response.ok) {
+    const data = await response.json()
+    throw new Error(data.message || 'Erro ao excluir arquivados')
+  }
+
+  return response.json()
+}
+
 // ====== CONFIGURAÇÕES ======
 
 export async function carregarConfiguracoes() {
@@ -238,6 +321,7 @@ export async function salvarConfiguracoes(dados: {
   nome: string
   telefone: string
   whatsappAtivado: boolean
+  dataNascimento?: string | null
 }) {
   const headers = await getAuthHeaders()
   const response = await fetch(`${API_BASE_URL}/api/configuracoes`, {

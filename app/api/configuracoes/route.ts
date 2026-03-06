@@ -41,7 +41,7 @@ export async function GET(req: Request) {
   // Buscar dados do usuário
   const { data: usuario } = await supabaseAdmin
     .from('USUARIO')
-    .select('ID_USUARIO, NOME, EMAIL, TELEFONE, PLANO')
+    .select('ID_USUARIO, NOME, EMAIL, TELEFONE, PLANO, DATA_NASCIMENTO')
     .eq('ID_USUARIO', user.id)
     .single()
 
@@ -78,7 +78,7 @@ export async function PUT(req: Request) {
   }
 
   const body = await req.json()
-  const { nome, telefone, whatsappAtivado } = body
+  const { nome, telefone, whatsappAtivado, dataNascimento } = body
 
   // Atualizar USUARIO
   const updateUsuario: any = {}
@@ -86,6 +86,9 @@ export async function PUT(req: Request) {
   if (telefone !== undefined) {
     const phoneNorm = telefone ? normalizePhone(telefone) : null
     updateUsuario.TELEFONE = phoneNorm
+  }
+  if (dataNascimento !== undefined) {
+    updateUsuario.DATA_NASCIMENTO = dataNascimento || null
   }
 
   if (Object.keys(updateUsuario).length > 0) {
@@ -142,6 +145,83 @@ export async function PUT(req: Request) {
         .update({ ATIVO: false })
         .eq('ID_USUARIO', user.id)
         .eq('PROVIDER', 'WHATSAPP')
+    }
+  }
+
+  // Gerenciar compromisso de aniversário
+  if (dataNascimento !== undefined) {
+    const { data: agenda } = await supabaseAdmin
+      .from('AGENDA')
+      .select('ID_AGENDA')
+      .eq('ID_USUARIO', user.id)
+      .single()
+
+    if (agenda) {
+      // Apagar aniversários existentes (base + filhos)
+      const { data: anivExist } = await supabaseAdmin
+        .from('COMPROMISSO')
+        .select('ID_COMPROMISSO')
+        .eq('ID_AGENDA', agenda.ID_AGENDA)
+        .eq('ORIGEM', 'ANIVERSARIO')
+      if (anivExist && anivExist.length > 0) {
+        const ids = anivExist.map((c: any) => c.ID_COMPROMISSO)
+        await supabaseAdmin.from('COMPROMISSO').delete().in('ID_COMPROMISSO', ids)
+      }
+
+      if (dataNascimento) {
+        // Buscar nome do usuário para o título
+        const { data: usuarioAtual } = await supabaseAdmin
+          .from('USUARIO')
+          .select('NOME')
+          .eq('ID_USUARIO', user.id)
+          .single()
+        const nomeUsuario = (nome?.trim()) || usuarioAtual?.NOME || 'você'
+
+        const parts = (dataNascimento as string).split('-').map(Number)
+        const mesNasc = parts[1]
+        const diaNasc = parts[2]
+        const hoje = new Date()
+        let anoBase = hoje.getFullYear()
+        const anivEsteAno = new Date(anoBase, mesNasc - 1, diaNasc)
+        if (anivEsteAno < hoje) anoBase++
+
+        const dataInicio = new Date(anoBase, mesNasc - 1, diaNasc, 0, 0, 0)
+        const dataFim = new Date(anoBase, mesNasc - 1, diaNasc, 23, 59, 0)
+        const tituloAniv = `🎂 Aniversário de ${nomeUsuario}`
+
+        const baseInsert = {
+          ID_AGENDA: agenda.ID_AGENDA,
+          TITULO: tituloAniv,
+          DATA_INICIO: dataInicio.toISOString(),
+          DATA_FIM: dataFim.toISOString(),
+          ORIGEM: 'ANIVERSARIO',
+          STATUS: 'ATIVO',
+          CRIADO_POR: user.id,
+          RECORRENCIA_TIPO: 'ANUAL',
+        }
+
+        const { data: base } = await supabaseAdmin
+          .from('COMPROMISSO')
+          .insert(baseInsert)
+          .select()
+          .single()
+
+        // Gerar filhos para próximos 4 anos (total 5 com a base)
+        if (base) {
+          const filhos = []
+          for (let i = 1; i <= 4; i++) {
+            const fInicio = new Date(anoBase + i, mesNasc - 1, diaNasc, 0, 0, 0)
+            const fFim = new Date(anoBase + i, mesNasc - 1, diaNasc, 23, 59, 0)
+            filhos.push({
+              ...baseInsert,
+              DATA_INICIO: fInicio.toISOString(),
+              DATA_FIM: fFim.toISOString(),
+              ID_COMPROMISSO_ORIGEM: base.ID_COMPROMISSO,
+            })
+          }
+          await supabaseAdmin.from('COMPROMISSO').insert(filhos)
+        }
+      }
     }
   }
 

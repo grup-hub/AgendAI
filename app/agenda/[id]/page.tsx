@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
+import ConfirmDialog from '@/app/components/ConfirmDialog'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,9 +18,12 @@ interface Compromisso {
   ORIGEM: string
   STATUS: string
   URGENTE?: boolean
+  IMPORTANCIA?: number | null
   compartilhado?: boolean
   dono_nome?: string
   permissao?: string
+  RECORRENCIA_TIPO?: string | null
+  ID_COMPROMISSO_ORIGEM?: string | null
 }
 
 const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -33,6 +37,24 @@ function getStatusColor(status: string) {
     case 'CANCELADO': return { bg: '#FEE2E2', text: '#991B1B', dot: '#EF4444' }
     case 'PENDENTE': return { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' }
     default: return { bg: '#F3F4F6', text: '#374151', dot: '#6B7280' }
+  }
+}
+
+function getImportanciaColor(importancia?: number | null): string | null {
+  switch (importancia) {
+    case 3: return '#EF4444'
+    case 2: return '#EAB308'
+    case 1: return '#2563EB'
+    default: return null
+  }
+}
+
+function getImportanciaLabel(importancia?: number | null): string | null {
+  switch (importancia) {
+    case 3: return '●●● Alta'
+    case 2: return '●● Média'
+    case 1: return '● Baixa'
+    default: return null
   }
 }
 
@@ -76,6 +98,13 @@ export default function DetalhesCompromissoPage() {
   const [editando, setEditando] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
+  const [arquivando, setArquivando] = useState(false)
+
+  // Adiar
+  const [mostrarAdiar, setMostrarAdiar] = useState(false)
+  const [adiando, setAdiando] = useState(false)
+  const [adiarDataInicio, setAdiarDataInicio] = useState('')
+  const [adiarDataFim, setAdiarDataFim] = useState('')
 
   // Campos de edição
   const [titulo, setTitulo] = useState('')
@@ -84,12 +113,18 @@ export default function DetalhesCompromissoPage() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [status, setStatus] = useState('')
-  const [urgente, setUrgente] = useState(false)
+  const [importancia, setImportancia] = useState<0 | 1 | 2 | 3>(0)
+
+  // Diálogos de confirmação
+  type DlgCfg = { title: string; message: string; confirmLabel: string; cancelLabel?: string; neutralLabel?: string; destructive?: boolean; onConfirm: () => void; onNeutral?: () => void }
+  const [dlg, setDlg] = useState<DlgCfg | null>(null)
+  function showDlg(cfg: DlgCfg) { setDlg(cfg) }
 
   // Compartilhamento
   const [copiado, setCopiado] = useState(false)
   const [mostrarShareInterno, setMostrarShareInterno] = useState(false)
   const [emailShare, setEmailShare] = useState('')
+  const [permissaoShare, setPermissaoShare] = useState<'VISUALIZAR' | 'EDITAR'>('VISUALIZAR')
   const [compartilhando, setCompartilhando] = useState(false)
   const [shareMsg, setShareMsg] = useState('')
   const [shareMsgTipo, setShareMsgTipo] = useState<'sucesso' | 'erro'>('sucesso')
@@ -109,7 +144,7 @@ export default function DetalhesCompromissoPage() {
       setDescricao(comp.DESCRICAO || '')
       setLocal(comp.LOCAL || '')
       setStatus(comp.STATUS)
-      setUrgente(comp.URGENTE || false)
+      setImportancia((comp.IMPORTANCIA as 0|1|2|3) || (comp.URGENTE ? 3 : 0))
       setDataInicio(new Date(comp.DATA_INICIO).toISOString().slice(0, 16))
       setDataFim(new Date(comp.DATA_FIM).toISOString().slice(0, 16))
       setCarregando(false)
@@ -137,7 +172,7 @@ export default function DetalhesCompromissoPage() {
         DATA_INICIO: new Date(dataInicio).toISOString(),
         DATA_FIM: new Date(dataFim).toISOString(),
         STATUS: status,
-        URGENTE: urgente,
+        IMPORTANCIA: importancia > 0 ? importancia : null,
       }),
     })
 
@@ -159,32 +194,158 @@ export default function DetalhesCompromissoPage() {
     setSalvando(false)
   }
 
-  async function handleCancelarCompromisso() {
-    if (!confirm('Tem certeza que deseja cancelar este compromisso?')) return
-    setSalvando(true)
+  function handleCancelarCompromisso() {
+    showDlg({
+      title: 'Cancelar compromisso',
+      message: 'Tem certeza que deseja cancelar este compromisso?',
+      confirmLabel: 'Sim, cancelar',
+      destructive: true,
+      onConfirm: () => showDlg({
+        title: 'Confirmar cancelamento',
+        message: 'O compromisso será marcado como CANCELADO.',
+        confirmLabel: 'Cancelar definitivamente',
+        cancelLabel: 'Voltar',
+        destructive: true,
+        onConfirm: async () => {
+          setDlg(null)
+          setSalvando(true)
+          const response = await fetch('/api/compromisso', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ID_COMPROMISSO: idCompromisso, STATUS: 'CANCELADO' }),
+          })
+          if (response.ok) {
+            setCompromisso((prev) => prev ? { ...prev, STATUS: 'CANCELADO' } : prev)
+            setStatus('CANCELADO')
+          }
+          setSalvando(false)
+        },
+      }),
+    })
+  }
+
+  function handleArquivar() {
+    if (!compromisso) return
+    if (compromisso.STATUS !== 'CANCELADO') {
+      showDlg({
+        title: 'Atenção',
+        message: 'Para arquivar este compromisso, você precisa cancelá-lo primeiro.\n\nDeseja cancelá-lo agora?',
+        confirmLabel: 'Cancelar compromisso',
+        cancelLabel: 'Fechar',
+        onConfirm: () => { setDlg(null); handleCancelarCompromisso() },
+      })
+      return
+    }
+    showDlg({
+      title: 'Arquivar compromisso',
+      message: `Arquivar "${compromisso.TITULO}"?\n\nSerá movido para Arquivados e poderá ser excluído definitivamente em Configurações.`,
+      confirmLabel: 'Arquivar',
+      destructive: true,
+      onConfirm: async () => {
+        setDlg(null)
+        setArquivando(true)
+        const response = await fetch('/api/compromisso', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ID_COMPROMISSO: idCompromisso, ARQUIVADO: true }),
+        })
+        if (response.ok) {
+          router.push('/agenda')
+        } else {
+          const data = await response.json()
+          setErro(data.message || 'Erro ao arquivar')
+          setArquivando(false)
+        }
+      },
+    })
+  }
+
+  function confirmarExclusao(excluirSerie: boolean) {
+    const params = excluirSerie ? `?id=${idCompromisso}&serie=true` : `?id=${idCompromisso}`
+    const msg = excluirSerie
+      ? 'Toda a série será excluída permanentemente. Esta ação não pode ser desfeita.'
+      : 'Esta ação não pode ser desfeita. O compromisso será excluído permanentemente.'
+    showDlg({
+      title: excluirSerie ? 'Excluir toda a série' : 'Confirmar exclusão',
+      message: msg,
+      confirmLabel: 'Excluir definitivamente',
+      cancelLabel: 'Voltar',
+      destructive: true,
+      onConfirm: async () => {
+        setDlg(null)
+        setExcluindo(true)
+        const response = await fetch(`/api/compromisso${params}`, { method: 'DELETE' })
+        if (response.ok) {
+          router.push('/agenda')
+        } else {
+          const data = await response.json()
+          setErro(data.message || 'Erro ao excluir')
+          setExcluindo(false)
+        }
+      },
+    })
+  }
+
+  function handleExcluir() {
+    const isRecorrente = compromisso?.RECORRENCIA_TIPO || compromisso?.ID_COMPROMISSO_ORIGEM
+    if (isRecorrente) {
+      showDlg({
+        title: 'Excluir compromisso recorrente',
+        message: 'Deseja excluir apenas esta ocorrência ou toda a série de compromissos?',
+        confirmLabel: 'Apenas esta',
+        cancelLabel: 'Cancelar',
+        neutralLabel: 'Toda a série',
+        onConfirm: () => { setDlg(null); confirmarExclusao(false) },
+        onNeutral: () => { setDlg(null); confirmarExclusao(true) },
+      })
+      return
+    }
+    showDlg({
+      title: 'Excluir compromisso',
+      message: `Tem certeza que deseja excluir "${compromisso?.TITULO}"?`,
+      confirmLabel: 'Sim, excluir',
+      destructive: true,
+      onConfirm: () => confirmarExclusao(false),
+    })
+  }
+
+  function abrirAdiar() {
+    if (!compromisso) return
+    const inicio = new Date(compromisso.DATA_INICIO)
+    const fim = new Date(compromisso.DATA_FIM)
+    inicio.setDate(inicio.getDate() + 1)
+    fim.setDate(fim.getDate() + 1)
+    setAdiarDataInicio(inicio.toISOString().slice(0, 16))
+    setAdiarDataFim(fim.toISOString().slice(0, 16))
+    setMostrarAdiar(true)
+  }
+
+  async function handleAdiar(e: React.FormEvent) {
+    e.preventDefault()
+    setAdiando(true)
+    setErro('')
     const response = await fetch('/api/compromisso', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ID_COMPROMISSO: idCompromisso, STATUS: 'CANCELADO' }),
+      body: JSON.stringify({
+        ID_COMPROMISSO: idCompromisso,
+        DATA_INICIO: new Date(adiarDataInicio).toISOString(),
+        DATA_FIM: new Date(adiarDataFim).toISOString(),
+      }),
     })
-    if (response.ok) {
-      setCompromisso((prev) => prev ? { ...prev, STATUS: 'CANCELADO' } : prev)
-      setStatus('CANCELADO')
-    }
-    setSalvando(false)
-  }
-
-  async function handleExcluir() {
-    if (!confirm(`Tem certeza que deseja excluir "${compromisso?.TITULO}"?`)) return
-    setExcluindo(true)
-    const response = await fetch(`/api/compromisso?id=${idCompromisso}`, { method: 'DELETE' })
-    if (response.ok) {
-      router.push('/agenda')
-    } else {
+    if (!response.ok) {
       const data = await response.json()
-      setErro(data.message || 'Erro ao excluir')
-      setExcluindo(false)
+      setErro(data.message || 'Erro ao adiar compromisso')
+      setAdiando(false)
+      return
     }
+    setCompromisso((prev) => prev ? {
+      ...prev,
+      DATA_INICIO: new Date(adiarDataInicio).toISOString(),
+      DATA_FIM: new Date(adiarDataFim).toISOString(),
+    } : prev)
+    setMostrarAdiar(false)
+    setAdiando(false)
   }
 
   // ====== COMPARTILHAMENTO ======
@@ -242,7 +403,7 @@ export default function DetalhesCompromissoPage() {
       const response = await fetch('/api/compartilhamento-compromisso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_compromisso: idCompromisso, email: emailShare.trim() }),
+        body: JSON.stringify({ id_compromisso: idCompromisso, email: emailShare.trim(), permissao: permissaoShare }),
       })
       const data = await response.json()
       if (!response.ok) {
@@ -283,7 +444,10 @@ export default function DetalhesCompromissoPage() {
     )
   }
 
-  const st = getStatusColor(compromisso!.STATUS)
+  const vencido = new Date(compromisso!.DATA_INICIO) < new Date()
+  const st = vencido && compromisso!.STATUS === 'ATIVO'
+    ? { bg: '#F3F4F6', text: '#6B7280', dot: '#6B7280' }
+    : getStatusColor(compromisso!.STATUS)
 
   // ====== MODO EDIÇÃO ======
   if (editando) {
@@ -340,16 +504,26 @@ export default function DetalhesCompromissoPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Urgente</label>
-                  <button type="button" onClick={() => setUrgente(!urgente)}
-                    className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition font-medium text-sm ${
-                      urgente
-                        ? 'bg-red-50 border-red-400 text-red-700'
-                        : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
-                    }`}>
-                    <span>{urgente ? '🔴' : '⚪'}</span>
-                    {urgente ? 'Sim, é urgente' : 'Não'}
-                  </button>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Importância</label>
+                  <div className="flex gap-1.5">
+                    {([1, 2, 3] as const).map((nivel) => {
+                      const impColor = getImportanciaColor(nivel)!
+                      const ativo = importancia === nivel
+                      return (
+                        <button
+                          key={nivel}
+                          type="button"
+                          onClick={() => setImportancia(ativo ? 0 : nivel)}
+                          className={`flex-1 py-2 rounded-lg border text-xs font-bold transition ${
+                            ativo ? 'text-white' : 'bg-white border-gray-300 text-gray-400 hover:border-gray-400'
+                          }`}
+                          style={ativo ? { backgroundColor: impColor, borderColor: impColor } : undefined}
+                        >
+                          {'●'.repeat(nivel)}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
@@ -389,13 +563,19 @@ export default function DetalhesCompromissoPage() {
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
               style={{ backgroundColor: st.bg, color: st.text }}>
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: st.dot }} />
-              {getStatusLabel(compromisso!.STATUS)}
+              {vencido && compromisso!.STATUS === 'ATIVO' ? 'Vencido' : getStatusLabel(compromisso!.STATUS)}
             </span>
-            {compromisso!.URGENTE && (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold bg-red-50 text-red-700 border border-red-200">
-                🔴 Urgente
-              </span>
-            )}
+            {(compromisso!.IMPORTANCIA ?? (compromisso!.URGENTE ? 3 : null)) && (() => {
+              const imp = compromisso!.IMPORTANCIA ?? (compromisso!.URGENTE ? 3 : null)
+              const impColor = getImportanciaColor(imp)!
+              const impLabel = getImportanciaLabel(imp)
+              return (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-bold border"
+                  style={{ backgroundColor: impColor + '15', color: impColor, borderColor: impColor + '40' }}>
+                  {impLabel}
+                </span>
+              )
+            })()}
           </div>
           <span className="text-xs text-gray-400">
             {compromisso!.ORIGEM === 'APP_MOBILE' ? 'App' :
@@ -428,7 +608,14 @@ export default function DetalhesCompromissoPage() {
               <span className="text-xl">📍</span>
               <div>
                 <p className="text-xs text-gray-400 mb-0.5">Local</p>
-                <p className="font-medium text-gray-900">{compromisso!.LOCAL}</p>
+                <a
+                  href={`https://maps.google.com/maps?q=${encodeURIComponent(compromisso!.LOCAL)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  {compromisso!.LOCAL}
+                </a>
               </div>
             </div>
           )}
@@ -436,8 +623,8 @@ export default function DetalhesCompromissoPage() {
             <div className="flex items-center gap-4 p-4">
               <span className="text-xl">👤</span>
               <div>
-                <p className="text-xs text-gray-400 mb-0.5">Compartilhado por</p>
-                <p className="font-medium text-purple-700">{compromisso!.dono_nome}</p>
+                <p className="text-xs text-gray-400 mb-0.5">Criado por</p>
+                <p className="font-medium text-purple-700">{compromisso!.dono_nome?.split(' ')[0]}</p>
               </div>
             </div>
           )}
@@ -485,6 +672,27 @@ export default function DetalhesCompromissoPage() {
               {mostrarShareInterno && (
                 <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <p className="text-sm text-gray-600 mb-3">O usuário receberá uma cópia deste compromisso na agenda dele</p>
+
+                  {/* Toggle de permissão */}
+                  <div className="mb-3">
+                    <p className="text-xs font-medium text-gray-700 mb-1.5">Permissão</p>
+                    <div className="flex gap-2">
+                      {(['VISUALIZAR', 'EDITAR'] as const).map((p) => (
+                        <button key={p} type="button"
+                          onClick={() => setPermissaoShare(p)}
+                          className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition ${
+                            permissaoShare === p
+                              ? p === 'EDITAR'
+                                ? 'bg-orange-500 border-orange-500 text-white'
+                                : 'bg-purple-600 border-purple-600 text-white'
+                              : 'bg-white border-gray-300 text-gray-500 hover:border-gray-400'
+                          }`}>
+                          {p === 'VISUALIZAR' ? '👁 Visualizar' : '✏️ Editar'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <form onSubmit={handleShareInterno} className="flex gap-2">
                     <input type="email" placeholder="Email do usuário AgendAI" value={emailShare}
                       onChange={(e) => setEmailShare(e.target.value)} required
@@ -512,10 +720,55 @@ export default function DetalhesCompromissoPage() {
               className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
               ✏️ Editar compromisso
             </button>
+
+            {/* Adiar */}
+            <button onClick={abrirAdiar}
+              className="w-full py-3 rounded-xl bg-blue-50 text-blue-800 font-medium border border-blue-200 hover:bg-blue-100 transition">
+              ⏭ Adiar compromisso
+            </button>
+            {mostrarAdiar && (
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <p className="text-sm text-gray-600 mb-3">Defina a nova data e horário para este compromisso</p>
+                <form onSubmit={handleAdiar} className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Novo início *</label>
+                      <input type="datetime-local" required value={adiarDataInicio}
+                        onChange={(e) => setAdiarDataInicio(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Novo fim *</label>
+                      <input type="datetime-local" required value={adiarDataFim}
+                        onChange={(e) => setAdiarDataFim(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    </div>
+                  </div>
+                  {erro && <p className="text-sm text-red-600">❌ {erro}</p>}
+                  <div className="flex gap-2">
+                    <button type="submit" disabled={adiando}
+                      className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition">
+                      {adiando ? 'Adiando...' : '✅ Confirmar adiamento'}
+                    </button>
+                    <button type="button" onClick={() => setMostrarAdiar(false)}
+                      className="flex-1 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition">
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             <button onClick={handleCancelarCompromisso} disabled={salvando}
               className="w-full py-3 rounded-xl bg-amber-50 text-amber-800 font-medium border border-amber-200 hover:bg-amber-100 transition disabled:opacity-50">
               {salvando ? 'Cancelando...' : '⏸ Cancelar compromisso'}
             </button>
+            {(new Date(compromisso!.DATA_INICIO) < new Date()) && (
+              <button onClick={handleArquivar} disabled={arquivando}
+                className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-medium border border-gray-200 hover:bg-gray-200 transition disabled:opacity-50">
+                {arquivando ? 'Arquivando...' : '📦 Arquivar compromisso'}
+              </button>
+            )}
             <button onClick={handleExcluir} disabled={excluindo}
               className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-medium border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
               {excluindo ? 'Excluindo...' : '🗑 Excluir compromisso'}
@@ -524,12 +777,33 @@ export default function DetalhesCompromissoPage() {
         )}
 
         {podeEditar && compromisso!.STATUS === 'CANCELADO' && (
-          <button onClick={handleExcluir} disabled={excluindo}
-            className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-medium border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
-            {excluindo ? 'Excluindo...' : '🗑 Excluir compromisso'}
-          </button>
+          <div className="space-y-2">
+            <button onClick={handleArquivar} disabled={arquivando}
+              className="w-full py-3 rounded-xl bg-gray-100 text-gray-700 font-medium border border-gray-200 hover:bg-gray-200 transition disabled:opacity-50">
+              {arquivando ? 'Arquivando...' : '📦 Arquivar compromisso'}
+            </button>
+            <button onClick={handleExcluir} disabled={excluindo}
+              className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-medium border border-red-200 hover:bg-red-100 transition disabled:opacity-50">
+              {excluindo ? 'Excluindo...' : '🗑 Excluir compromisso'}
+            </button>
+          </div>
         )}
       </div>
+
+      {dlg && (
+        <ConfirmDialog
+          visible={true}
+          title={dlg.title}
+          message={dlg.message}
+          confirmLabel={dlg.confirmLabel}
+          cancelLabel={dlg.cancelLabel}
+          neutralLabel={dlg.neutralLabel}
+          destructive={dlg.destructive}
+          onConfirm={dlg.onConfirm}
+          onCancel={() => setDlg(null)}
+          onNeutral={dlg.onNeutral}
+        />
+      )}
     </div>
   )
 }

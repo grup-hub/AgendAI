@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser'
+import ConfirmDialog from '@/app/components/ConfirmDialog'
 
 interface Compartilhamento {
   ID_COMPARTILHAMENTO: string
@@ -37,6 +38,11 @@ export default function CompartilharPage() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [sucesso, setSucesso] = useState('')
+
+  // Diálogo de confirmação
+  type DlgCfg = { title: string; message: string; confirmLabel: string; destructive?: boolean; onConfirm: () => void }
+  const [dlg, setDlg] = useState<DlgCfg | null>(null)
+  function showDlg(cfg: DlgCfg) { setDlg(cfg) }
 
   // Formulário
   const [email, setEmail] = useState('')
@@ -147,33 +153,67 @@ export default function CompartilharPage() {
     carregarDados()
   }
 
-  async function handleRemover(id: string) {
-    if (!confirm('Tem certeza que deseja remover este compartilhamento?')) return
-
-    setErro('')
-    setSucesso('')
-
-    const response = await fetch(`/api/compartilhamento?id=${id}`, {
-      method: 'DELETE',
+  function handleRemover(id: string) {
+    showDlg({
+      title: 'Remover compartilhamento',
+      message: 'Tem certeza que deseja remover este compartilhamento?',
+      confirmLabel: 'Remover',
+      destructive: true,
+      onConfirm: async () => {
+        setDlg(null)
+        setErro('')
+        setSucesso('')
+        const response = await fetch(`/api/compartilhamento?id=${id}`, { method: 'DELETE' })
+        const data = await response.json()
+        if (!response.ok) { setErro(data.message || 'Erro ao remover'); return }
+        setSucesso('Compartilhamento removido.')
+        carregarDados()
+      },
     })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      setErro(data.message || 'Erro ao remover compartilhamento')
-      return
-    }
-
-    setSucesso('Compartilhamento removido.')
-    carregarDados()
   }
 
-  function statusLabel(status: string) {
+  function handleRemoverCompromisso(id: string, tipo: 'cancelar' | 'desfazer' | 'arquivar' | 'revogar') {
+    const titulo =
+      tipo === 'cancelar' ? 'Cancelar convite' :
+      tipo === 'desfazer' ? 'Desfazer aceite' :
+      tipo === 'revogar' ? 'Revogar compartilhamento' : 'Arquivar convite'
+    const mensagem =
+      tipo === 'cancelar' ? 'Deseja cancelar este convite enviado?' :
+      tipo === 'desfazer' ? 'Deseja desfazer o aceite deste compromisso compartilhado?' :
+      tipo === 'revogar' ? 'Deseja revogar o compartilhamento? O compromisso será removido da agenda do destinatário.' :
+      'Deseja arquivar este convite recusado? Ele será removido do histórico.'
+    const btnLabel =
+      tipo === 'cancelar' ? 'Cancelar convite' :
+      tipo === 'desfazer' ? 'Desfazer' :
+      tipo === 'revogar' ? 'Revogar' : 'Arquivar'
+    showDlg({
+      title: titulo,
+      message: mensagem,
+      confirmLabel: btnLabel,
+      destructive: true,
+      onConfirm: async () => {
+        setDlg(null)
+        setErro('')
+        setSucesso('')
+        const response = await fetch(`/api/compartilhamento-compromisso?id=${id}`, { method: 'DELETE' })
+        const data = await response.json()
+        if (!response.ok) { setErro(data.message || 'Erro ao remover'); return }
+        setSucesso(
+          tipo === 'cancelar' ? 'Convite cancelado.' :
+          tipo === 'desfazer' ? 'Aceite desfeito.' :
+          tipo === 'revogar' ? 'Acesso revogado.' : 'Convite arquivado.'
+        )
+        carregarDados()
+      },
+    })
+  }
+
+  function statusLabel(status: string, perspectiva: 'enviado' | 'recebido' = 'enviado') {
     switch (status) {
       case 'PENDENTE':
         return { text: 'Pendente', cls: 'bg-yellow-50 text-yellow-700' }
       case 'ACEITO':
-        return { text: 'Aceito', cls: 'bg-green-50 text-green-700' }
+        return { text: perspectiva === 'recebido' ? 'Aceitei' : 'Aceitou', cls: 'bg-green-50 text-green-700' }
       case 'RECUSADO':
         return { text: 'Recusado', cls: 'bg-red-50 text-red-700' }
       default:
@@ -227,30 +267,56 @@ export default function CompartilharPage() {
         {/* Formulário de convite */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Compartilhar minha agenda</h3>
-          <form onSubmit={handleConvidar} className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="email"
-              placeholder="Preencher com email do usuário"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={permissao}
-              onChange={(e) => setPermissao(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="VISUALIZAR">Visualizar</option>
-              <option value="EDITAR">Editar</option>
-            </select>
-            <button
-              type="submit"
-              disabled={enviando}
-              className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
-            >
-              {enviando ? 'Enviando...' : 'Convidar'}
-            </button>
+          <form onSubmit={handleConvidar} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                placeholder="Preencher com email do usuário"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                disabled={enviando}
+                className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium disabled:opacity-50"
+              >
+                {enviando ? 'Enviando...' : 'Convidar'}
+              </button>
+            </div>
+
+            {/* Seleção de permissão com descrição */}
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-2">Permissão de acesso:</p>
+              <div className="flex gap-3">
+                {(['VISUALIZAR', 'EDITAR'] as const).map((p) => {
+                  const ativo = permissao === p
+                  const cores = p === 'EDITAR'
+                    ? { border: 'border-orange-500', bg: 'bg-orange-500', text: 'text-white', sub: 'text-orange-100' }
+                    : { border: 'border-purple-600', bg: 'bg-purple-600', text: 'text-white', sub: 'text-purple-100' }
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPermissao(p)}
+                      className={`flex-1 p-3 rounded-lg border-2 text-center transition ${
+                        ativo
+                          ? `${cores.border} ${cores.bg}`
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <p className={`font-bold text-sm tracking-wide ${ativo ? cores.text : 'text-gray-400'}`}>
+                        {p === 'VISUALIZAR' ? '👁️ Visualizar' : '✏️ Editar'}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${ativo ? cores.sub : 'text-gray-400'}`}>
+                        {p === 'VISUALIZAR' ? 'Só pode ver seus compromissos' : 'Pode criar e editar compromissos'}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </form>
         </div>
 
@@ -265,7 +331,7 @@ export default function CompartilharPage() {
             <div className="space-y-3">
               {/* Convites de compromisso (📌) */}
               {compRecebidos.map((r) => {
-                const st = statusLabel(r.STATUS)
+                const st = statusLabel(r.STATUS, 'recebido')
                 const dataFormatada = r.compromisso?.DATA_INICIO
                   ? new Date(r.compromisso.DATA_INICIO).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
                   : ''
@@ -309,6 +375,22 @@ export default function CompartilharPage() {
                           </button>
                         </>
                       )}
+                      {r.STATUS === 'ACEITO' && (
+                        <button
+                          onClick={() => handleRemoverCompromisso(r.ID, 'desfazer')}
+                          className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          Desfazer
+                        </button>
+                      )}
+                      {r.STATUS === 'RECUSADO' && (
+                        <button
+                          onClick={() => handleRemoverCompromisso(r.ID, 'arquivar')}
+                          className="px-3 py-1 rounded text-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        >
+                          📦 Arquivar
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -316,7 +398,7 @@ export default function CompartilharPage() {
 
               {/* Convites de agenda (📅) */}
               {recebidos.map((r) => {
-                const st = statusLabel(r.STATUS)
+                const st = statusLabel(r.STATUS, 'recebido')
                 return (
                   <div
                     key={r.ID_COMPARTILHAMENTO}
@@ -365,6 +447,14 @@ export default function CompartilharPage() {
                           Sair
                         </button>
                       )}
+                      {r.STATUS === 'RECUSADO' && (
+                        <button
+                          onClick={() => handleRemover(r.ID_COMPARTILHAMENTO)}
+                          className="px-3 py-1 rounded text-sm bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        >
+                          📦 Arquivar
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -384,7 +474,7 @@ export default function CompartilharPage() {
             <div className="space-y-3">
               {/* Compromissos enviados (📌) */}
               {compEnviados.map((e) => {
-                const st = statusLabel(e.STATUS)
+                const st = statusLabel(e.STATUS, 'enviado')
                 return (
                   <div
                     key={`comp-${e.ID}`}
@@ -406,6 +496,22 @@ export default function CompartilharPage() {
                       <span className={`px-2 py-1 rounded text-xs font-medium ${st.cls}`}>
                         {st.text}
                       </span>
+                      {e.STATUS === 'PENDENTE' && (
+                        <button
+                          onClick={() => handleRemoverCompromisso(e.ID, 'cancelar')}
+                          className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                      {e.STATUS === 'ACEITO' && (
+                        <button
+                          onClick={() => handleRemoverCompromisso(e.ID, 'revogar')}
+                          className="px-3 py-1 rounded text-sm bg-red-50 text-red-700 hover:bg-red-100"
+                        >
+                          🚫 Revogar acesso
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -413,7 +519,7 @@ export default function CompartilharPage() {
 
               {/* Agendas enviadas (📅) */}
               {enviados.map((e) => {
-                const st = statusLabel(e.STATUS)
+                const st = statusLabel(e.STATUS, 'enviado')
                 return (
                   <div
                     key={e.ID_COMPARTILHAMENTO}
@@ -427,8 +533,10 @@ export default function CompartilharPage() {
                         </p>
                       </div>
                       <p className="text-sm text-gray-500">
-                        {e.convidado?.EMAIL} | Permissão:{' '}
-                        {e.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
+                        📅 Minha agenda | {e.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {e.convidado?.EMAIL}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
                         Enviado em {new Date(e.DATA_CONVITE).toLocaleDateString('pt-BR')}
@@ -452,6 +560,18 @@ export default function CompartilharPage() {
           )}
         </div>
       </div>
+
+      {dlg && (
+        <ConfirmDialog
+          visible={true}
+          title={dlg.title}
+          message={dlg.message}
+          confirmLabel={dlg.confirmLabel}
+          destructive={dlg.destructive}
+          onConfirm={dlg.onConfirm}
+          onCancel={() => setDlg(null)}
+        />
+      )}
     </div>
   )
 }

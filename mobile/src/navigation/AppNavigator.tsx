@@ -3,9 +3,14 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { useAuth } from '../contexts/AuthContext'
-import { ActivityIndicator, View, Text, Platform } from 'react-native'
+import { ActivityIndicator, View, Text, Platform, AppState } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { registrarNotificacoes } from '../lib/notifications'
+import { supabase } from '../lib/supabase'
+import {
+  CompartilhamentoProvider,
+  useCompartilhamento,
+} from '../contexts/CompartilhamentoContext'
 
 import LoginScreen from '../screens/LoginScreen'
 import CadastroScreen from '../screens/CadastroScreen'
@@ -65,6 +70,23 @@ function Copa2026Stack() {
   )
 }
 
+function CompartilhamentoStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="CompartilhamentoHome"
+        component={CompartilhamentoScreen}
+        options={{ title: 'Compartilhar', ...headerStyle }}
+      />
+      <Stack.Screen
+        name="DetalhesCompromisso"
+        component={DetalhesCompromissoScreen}
+        options={{ title: 'Detalhes', ...headerStyle }}
+      />
+    </Stack.Navigator>
+  )
+}
+
 function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   const icons: Record<string, string> = {
     'Agenda': '📅',
@@ -79,9 +101,64 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
   )
 }
 
+// MainTabs separado para poder usar hooks de context
 function MainTabs() {
   const insets = useSafeAreaInsets()
   const bottomPadding = Math.max(insets.bottom, 10)
+  const { session } = useAuth()
+  const { pendentesCount, refreshPendentes } = useCompartilhamento()
+
+  // 1. Busca inicial ao logar
+  useEffect(() => {
+    if (session?.user?.id) {
+      refreshPendentes()
+    }
+  }, [session?.user?.id])
+
+  // 2. Supabase Realtime — notificação em tempo real ao receber novo compartilhamento
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const userId = session.user.id
+
+    const channel = supabase
+      .channel('compartilhamentos-novos')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'COMPARTILHAMENTO_AGENDA',
+          filter: `ID_USUARIO_CONVIDADO=eq.${userId}`,
+        },
+        () => refreshPendentes()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'COMPARTILHAMENTO_COMPROMISSO',
+          filter: `ID_USUARIO_DESTINATARIO=eq.${userId}`,
+        },
+        () => refreshPendentes()
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [session?.user?.id])
+
+  // 3. Fallback via AppState — ao voltar ao foreground
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        refreshPendentes()
+      }
+    })
+    return () => sub.remove()
+  }, [session?.user?.id])
 
   return (
     <Tab.Navigator
@@ -123,8 +200,11 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Compartilhar"
-        component={CompartilhamentoScreen}
-        options={{ title: 'Compartilhar', ...headerStyle }}
+        component={CompartilhamentoStack}
+        options={{
+          headerShown: false,
+          tabBarBadge: pendentesCount > 0 ? pendentesCount : undefined,
+        }}
       />
       <Tab.Screen
         name="Configurações"
@@ -145,7 +225,7 @@ function AuthStack() {
   )
 }
 
-export default function AppNavigator() {
+function AppContent() {
   const { session, loading } = useAuth()
 
   // Registrar notificações quando logado
@@ -163,9 +243,15 @@ export default function AppNavigator() {
     )
   }
 
+  return session ? <MainTabs /> : <AuthStack />
+}
+
+export default function AppNavigator() {
   return (
     <NavigationContainer>
-      {session ? <MainTabs /> : <AuthStack />}
+      <CompartilhamentoProvider>
+        <AppContent />
+      </CompartilhamentoProvider>
     </NavigationContainer>
   )
 }

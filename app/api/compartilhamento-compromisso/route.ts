@@ -55,7 +55,7 @@ export async function GET(req: Request) {
     const compIds = enviadosData.map(e => e.ID_COMPROMISSO_ORIGEM)
     const { data: compromissos } = await supabaseAdmin
       .from('COMPROMISSO')
-      .select('ID_COMPROMISSO, TITULO, DATA_INICIO, DATA_FIM, LOCAL')
+      .select('ID_COMPROMISSO, TITULO, DESCRICAO, DATA_INICIO, DATA_FIM, LOCAL, STATUS, ORIGEM, IMPORTANCIA, URGENTE, ID_AGENDA')
       .in('ID_COMPROMISSO', compIds)
 
     const destMap = new Map(destinatarios?.map(d => [d.ID_USUARIO, d]) || [])
@@ -89,8 +89,19 @@ export async function GET(req: Request) {
     const compIds = recebidosData.map(r => r.ID_COMPROMISSO_ORIGEM)
     const { data: compromissos } = await supabaseAdmin
       .from('COMPROMISSO')
-      .select('ID_COMPROMISSO, TITULO, DATA_INICIO, DATA_FIM, LOCAL')
+      .select('ID_COMPROMISSO, TITULO, DESCRICAO, DATA_INICIO, DATA_FIM, LOCAL, STATUS, ORIGEM, IMPORTANCIA, URGENTE, ID_AGENDA')
       .in('ID_COMPROMISSO', compIds)
+
+    // Buscar cópias dos compromissos aceitos
+    const copiaIds = recebidosData.filter(r => r.STATUS === 'ACEITO' && r.ID_COMPROMISSO_COPIA).map(r => r.ID_COMPROMISSO_COPIA)
+    let copiaMap = new Map<string, any>()
+    if (copiaIds.length > 0) {
+      const { data: copias } = await supabaseAdmin
+        .from('COMPROMISSO')
+        .select('ID_COMPROMISSO, TITULO, DESCRICAO, DATA_INICIO, DATA_FIM, LOCAL, STATUS, ORIGEM, IMPORTANCIA, URGENTE, ID_AGENDA')
+        .in('ID_COMPROMISSO', copiaIds)
+      copiaMap = new Map(copias?.map(c => [c.ID_COMPROMISSO, c]) || [])
+    }
 
     const remMap = new Map(remetentes?.map(r => [r.ID_USUARIO, r]) || [])
     const compMap = new Map(compromissos?.map(c => [c.ID_COMPROMISSO, c]) || [])
@@ -99,6 +110,7 @@ export async function GET(req: Request) {
       ...r,
       remetente: remMap.get(r.ID_USUARIO_REMETENTE) || null,
       compromisso: compMap.get(r.ID_COMPROMISSO_ORIGEM) || null,
+      compromissoCopia: r.ID_COMPROMISSO_COPIA ? (copiaMap.get(r.ID_COMPROMISSO_COPIA) || null) : null,
       tipo: 'COMPROMISSO',
     }))
   }
@@ -116,7 +128,8 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { id_compromisso, email } = body
+  const { id_compromisso, email, permissao } = body
+  const permissaoValida: 'VISUALIZAR' | 'EDITAR' = permissao === 'EDITAR' ? 'EDITAR' : 'VISUALIZAR'
 
   if (!id_compromisso || !email) {
     return NextResponse.json({ message: 'Compromisso e email são obrigatórios' }, { status: 400 })
@@ -200,6 +213,7 @@ export async function POST(req: Request) {
       ID_USUARIO_REMETENTE: user.id,
       ID_USUARIO_DESTINATARIO: destinatario.ID_USUARIO,
       STATUS: 'PENDENTE',
+      PERMISSAO: permissaoValida,
     })
     .select()
     .single()
@@ -291,6 +305,7 @@ export async function PUT(req: Request) {
       LOCAL: compOriginal.LOCAL,
       DATA_INICIO: compOriginal.DATA_INICIO,
       DATA_FIM: compOriginal.DATA_FIM,
+      IMPORTANCIA: compOriginal.IMPORTANCIA,
       ORIGEM: 'COMPARTILHADO',
       STATUS: 'ATIVO',
       CRIADO_POR: user.id,
@@ -347,6 +362,14 @@ export async function DELETE(req: Request) {
   // Verificar permissão: remetente ou destinatário
   if (compart.ID_USUARIO_REMETENTE !== user.id && compart.ID_USUARIO_DESTINATARIO !== user.id) {
     return NextResponse.json({ message: 'Sem permissão' }, { status: 403 })
+  }
+
+  // Se o convite foi aceito, deletar a cópia do compromisso na agenda do destinatário
+  if (compart.STATUS === 'ACEITO' && compart.ID_COMPROMISSO_COPIA) {
+    await supabaseAdmin
+      .from('COMPROMISSO')
+      .delete()
+      .eq('ID_COMPROMISSO', compart.ID_COMPROMISSO_COPIA)
   }
 
   const { error: deleteError } = await supabaseAdmin

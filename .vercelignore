@@ -1,3 +1,5 @@
 mobile/
+**/*.apk
+**/*.aab
 check-rls.js
 nul

@@ -107,6 +107,21 @@ export async function notificarCompartilhamentosPendentes(
   })
 }
 
+// Notificação imediata de novos compartilhamentos recebidos
+export async function notificarNovoCompartilhamento(quantidade: number = 1): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '📬 AgendAI — Novo compartilhamento',
+      body: quantidade === 1
+        ? 'Alguém compartilhou um compromisso ou agenda com você!'
+        : `Você tem ${quantidade} novos compartilhamentos aguardando sua resposta`,
+      data: { tipo: 'compartilhamento' },
+      sound: 'default',
+    },
+    trigger: null, // disparo imediato
+  })
+}
+
 // Agendar lembretes para todos os compromissos futuros
 export async function agendarLembretesCompromissos(
   compromissos: Array<{

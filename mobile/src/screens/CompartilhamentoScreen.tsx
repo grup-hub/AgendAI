@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   FlatList,
   ActivityIndicator,
   RefreshControl,
@@ -18,7 +17,10 @@ import {
   removerCompartilhamento,
   listarCompartilhamentosCompromisso,
   responderCompartilhamentoCompromisso,
+  removerCompartilhamentoCompromisso,
 } from '../lib/api'
+import { useCompartilhamento } from '../contexts/CompartilhamentoContext'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 interface Compartilhamento {
   ID_COMPARTILHAMENTO: string
@@ -31,17 +33,37 @@ interface Compartilhamento {
   dono?: { NOME: string; EMAIL: string }
 }
 
+interface CompromissoNavData {
+  ID_COMPROMISSO: string
+  TITULO: string
+  DESCRICAO?: string | null
+  DATA_INICIO: string
+  DATA_FIM?: string | null
+  LOCAL?: string | null
+  STATUS: string
+  ORIGEM: string
+  IMPORTANCIA?: number | null
+  URGENTE?: boolean
+  ID_AGENDA: string
+  compartilhado?: boolean
+  permissao?: string
+  dono_nome?: string
+}
+
 interface CompartilhamentoCompromisso {
   ID: string
   ID_COMPROMISSO_ORIGEM: string
+  ID_COMPROMISSO_COPIA?: string
+  PERMISSAO?: string
   STATUS: string
   DATA_COMPARTILHAMENTO: string
   remetente?: { NOME: string; EMAIL: string }
   destinatario?: { NOME: string; EMAIL: string }
-  compromisso?: { TITULO: string; DATA_INICIO: string; DATA_FIM?: string; LOCAL?: string }
+  compromisso?: CompromissoNavData
+  compromissoCopia?: CompromissoNavData
 }
 
-export default function CompartilhamentoScreen() {
+export default function CompartilhamentoScreen({ navigation }: any) {
   const [enviados, setEnviados] = useState<Compartilhamento[]>([])
   const [recebidos, setRecebidos] = useState<Compartilhamento[]>([])
   const [compEnviados, setCompEnviados] = useState<CompartilhamentoCompromisso[]>([])
@@ -55,6 +77,72 @@ export default function CompartilhamentoScreen() {
   const [enviando, setEnviando] = useState(false)
   const lastFetch = useRef<number>(0)
   const loaded = useRef(false)
+
+  // Seleção múltipla de compRecebidos
+  const [modoSelecaoComp, setModoSelecaoComp] = useState(false)
+  const [selecionadosComp, setSelecionadosComp] = useState<string[]>([])
+
+  // Dialog de confirmação genérico
+  type DialogCfg = { title: string; message: string; confirmLabel: string; destructive?: boolean; onConfirm: () => Promise<void> }
+  const [dialogCfg, setDialogCfg] = useState<DialogCfg | null>(null)
+
+  function showDialog(cfg: DialogCfg) { setDialogCfg(cfg) }
+
+  // Alerta genérico (sucesso/erro/info)
+  type AlertCfg = { type?: 'success'|'error'|'info'|'warning'; title: string; message: string; onConfirm?: () => void }
+  const [alertCfg, setAlertCfg] = useState<AlertCfg | null>(null)
+  function showAlert(cfg: AlertCfg) { setAlertCfg(cfg) }
+
+  function sairModoSelecaoComp() {
+    setModoSelecaoComp(false)
+    setSelecionadosComp([])
+  }
+
+  function handleLongPressComp(id: string) {
+    if (!modoSelecaoComp) {
+      setModoSelecaoComp(true)
+      setSelecionadosComp([id])
+    }
+  }
+
+  function toggleSelecaoComp(id: string) {
+    setSelecionadosComp((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  function handleAceitarSelecionados() {
+    if (selecionadosComp.length === 0) return
+    showDialog({
+      title: 'Aceitar compromissos',
+      message: `Aceitar ${selecionadosComp.length} compromisso(s) selecionado(s)?`,
+      confirmLabel: 'Aceitar',
+      onConfirm: async () => {
+        for (const id of selecionadosComp) {
+          try { await responderCompartilhamentoCompromisso(id, 'ACEITO') } catch {}
+        }
+        sairModoSelecaoComp()
+        carregar()
+      },
+    })
+  }
+
+  function handleRecusarSelecionados() {
+    if (selecionadosComp.length === 0) return
+    showDialog({
+      title: 'Recusar compromissos',
+      message: `Recusar ${selecionadosComp.length} compromisso(s) selecionado(s)?`,
+      confirmLabel: 'Recusar',
+      destructive: true,
+      onConfirm: async () => {
+        for (const id of selecionadosComp) {
+          try { await responderCompartilhamentoCompromisso(id, 'RECUSADO') } catch {}
+        }
+        sairModoSelecaoComp()
+        carregar()
+      },
+    })
+  }
+
+  const { resetBadge } = useCompartilhamento()
 
   const carregar = async (forceLoading = false) => {
     if (forceLoading) setCarregando(true)
@@ -70,7 +158,7 @@ export default function CompartilhamentoScreen() {
       lastFetch.current = Date.now()
       loaded.current = true
     } catch (err: any) {
-      if (!loaded.current) Alert.alert('Erro', err.message || 'Erro ao carregar')
+      if (!loaded.current) showAlert({ type: 'error', title: 'Erro ao carregar', message: err.message || 'Não foi possível carregar os compartilhamentos.' })
     } finally {
       setCarregando(false)
       setRefreshing(false)
@@ -79,6 +167,9 @@ export default function CompartilhamentoScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Zera o badge da aba ao abrir a tela
+      resetBadge()
+
       const isFirstLoad = !loaded.current
       const isStale = Date.now() - lastFetch.current > 30000
       if (isFirstLoad) {
@@ -92,18 +183,18 @@ export default function CompartilhamentoScreen() {
 
   async function handleConvidar() {
     if (!email.trim()) {
-      Alert.alert('Erro', 'Digite o email do usuário')
+      showAlert({ type: 'error', title: 'Campo obrigatório', message: 'Digite o email do usuário' })
       return
     }
 
     setEnviando(true)
     try {
       await convidarCompartilhamento(email.trim(), permissao)
-      Alert.alert('Sucesso', 'Convite enviado!')
       setEmail('')
       carregar()
+      showAlert({ type: 'success', title: 'Convite enviado!', message: 'O usuário receberá o convite para acessar sua agenda.' })
     } catch (err: any) {
-      Alert.alert('Erro', err.message || 'Erro ao enviar convite')
+      showAlert({ type: 'error', title: 'Erro ao enviar convite', message: err.message || 'Não foi possível enviar o convite.' })
     } finally {
       setEnviando(false)
     }
@@ -112,48 +203,94 @@ export default function CompartilhamentoScreen() {
   async function handleResponder(id: string, status: 'ACEITO' | 'RECUSADO') {
     try {
       await responderCompartilhamento(id, status)
-      Alert.alert('Sucesso', status === 'ACEITO' ? 'Convite aceito!' : 'Convite recusado.')
       carregar()
+      showAlert({ type: 'success', title: status === 'ACEITO' ? 'Convite aceito!' : 'Convite recusado.', message: status === 'ACEITO' ? 'A agenda foi adicionada com sucesso.' : 'O convite foi recusado.' })
     } catch (err: any) {
-      Alert.alert('Erro', err.message)
+      showAlert({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
   async function handleResponderCompromisso(id: string, status: 'ACEITO' | 'RECUSADO') {
     try {
       await responderCompartilhamentoCompromisso(id, status)
-      Alert.alert('Sucesso', status === 'ACEITO' ? 'Compromisso adicionado à sua agenda!' : 'Convite recusado.')
       carregar()
+      showAlert({ type: 'success', title: status === 'ACEITO' ? 'Compromisso adicionado!' : 'Convite recusado.', message: status === 'ACEITO' ? 'O compromisso foi adicionado à sua agenda.' : 'O convite foi recusado.' })
     } catch (err: any) {
-      Alert.alert('Erro', err.message)
+      showAlert({ type: 'error', title: 'Erro', message: err.message })
     }
   }
 
-  async function handleRemover(id: string) {
-    Alert.alert('Remover', 'Tem certeza que deseja remover este compartilhamento?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await removerCompartilhamento(id)
-            Alert.alert('Sucesso', 'Compartilhamento removido.')
-            carregar()
-          } catch (err: any) {
-            Alert.alert('Erro', err.message)
-          }
-        },
+  function handleRemover(id: string) {
+    showDialog({
+      title: 'Remover compartilhamento',
+      message: 'Tem certeza que deseja remover este compartilhamento?',
+      confirmLabel: 'Remover',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removerCompartilhamento(id)
+          carregar()
+          showAlert({ type: 'success', title: 'Compartilhamento removido!', message: 'O compartilhamento foi removido com sucesso.' })
+        } catch (err: any) {
+          showAlert({ type: 'error', title: 'Erro', message: err.message })
+        }
       },
-    ])
+    })
   }
 
-  function getStatusStyle(status: string) {
+  function handleRemoverCompromisso(id: string, tipo: 'cancelar' | 'desfazer' | 'arquivar' | 'revogar') {
+    const titulo =
+      tipo === 'cancelar' ? 'Cancelar convite' :
+      tipo === 'desfazer' ? 'Desfazer aceite' :
+      tipo === 'revogar' ? 'Revogar compartilhamento' : 'Arquivar convite'
+    const mensagem =
+      tipo === 'cancelar' ? 'Deseja cancelar este convite enviado?' :
+      tipo === 'desfazer' ? 'Deseja desfazer o aceite deste compromisso compartilhado?' :
+      tipo === 'revogar' ? 'Deseja revogar o compartilhamento? O compromisso será removido da agenda do destinatário.' :
+      'Deseja arquivar este convite recusado? Ele será removido do histórico.'
+    const btnLabel =
+      tipo === 'cancelar' ? 'Cancelar convite' :
+      tipo === 'desfazer' ? 'Desfazer' :
+      tipo === 'revogar' ? 'Revogar' : 'Arquivar'
+    showDialog({
+      title: titulo,
+      message: mensagem,
+      confirmLabel: btnLabel,
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removerCompartilhamentoCompromisso(id)
+          carregar()
+        } catch (err: any) {
+          showAlert({ type: 'error', title: 'Erro', message: err.message })
+        }
+      },
+    })
+  }
+
+  function handleArquivarConviteAgenda(id: string) {
+    showDialog({
+      title: 'Arquivar convite',
+      message: 'Deseja arquivar este convite recusado? Ele será removido do histórico.',
+      confirmLabel: 'Arquivar',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await removerCompartilhamento(id)
+          carregar()
+        } catch (err: any) {
+          showAlert({ type: 'error', title: 'Erro', message: err.message })
+        }
+      },
+    })
+  }
+
+  function getStatusStyle(status: string, perspectiva: 'enviado' | 'recebido' = 'enviado') {
     switch (status) {
       case 'PENDENTE': return { bg: '#FEF3C7', text: '#92400E', label: 'Pendente' }
-      case 'ACEITO': return { bg: '#D1FAE5', text: '#065F46', label: 'Aceito' }
+      case 'ACEITO':   return { bg: '#D1FAE5', text: '#065F46', label: perspectiva === 'recebido' ? 'Aceitei' : 'Aceitou' }
       case 'RECUSADO': return { bg: '#FEE2E2', text: '#991B1B', label: 'Recusado' }
-      default: return { bg: '#F3F4F6', text: '#374151', label: status }
+      default:         return { bg: '#F3F4F6', text: '#374151', label: status }
     }
   }
 
@@ -182,9 +319,36 @@ export default function CompartilhamentoScreen() {
   ]
 
   return (
-    <FlatList
-      style={styles.container}
-      data={sections}
+    <View style={styles.container}>
+      {/* Barra do modo seleção */}
+      {modoSelecaoComp && (
+        <View style={styles.selecaoTopBar}>
+          <TouchableOpacity onPress={sairModoSelecaoComp} style={styles.selecaoCloseBtn}>
+            <Text style={styles.selecaoCloseText}>✕ Cancelar</Text>
+          </TouchableOpacity>
+          <Text style={styles.selecaoTopText}>
+            {selecionadosComp.length === 0 ? 'Toque para selecionar' : `${selecionadosComp.length} selecionado(s)`}
+          </Text>
+          <TouchableOpacity
+            style={[styles.selecaoAcaoBtn, selecionadosComp.length === 0 && { opacity: 0.4 }]}
+            onPress={handleAceitarSelecionados}
+            disabled={selecionadosComp.length === 0}
+          >
+            <Text style={styles.selecaoAcaoBtnText}>✓ Aceitar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.selecaoAcaoBtn, { backgroundColor: '#EF4444' }, selecionadosComp.length === 0 && { opacity: 0.4 }]}
+            onPress={handleRecusarSelecionados}
+            disabled={selecionadosComp.length === 0}
+          >
+            <Text style={styles.selecaoAcaoBtnText}>✕ Recusar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <FlatList
+        style={{ flex: 1 }}
+        data={sections}
       keyExtractor={(item, index) => `${item.type}-${index}`}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); carregar() }} colors={['#2563EB']} />
@@ -205,23 +369,27 @@ export default function CompartilhamentoScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              <Text style={styles.permissaoLabel}>Permissão de acesso:</Text>
               <View style={styles.permissaoRow}>
-                <TouchableOpacity
-                  style={[styles.permissaoBtn, permissao === 'VISUALIZAR' && styles.permissaoActive]}
-                  onPress={() => setPermissao('VISUALIZAR')}
-                >
-                  <Text style={[styles.permissaoText, permissao === 'VISUALIZAR' && styles.permissaoTextActive]}>
-                    Visualizar
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.permissaoBtn, permissao === 'EDITAR' && styles.permissaoActive]}
-                  onPress={() => setPermissao('EDITAR')}
-                >
-                  <Text style={[styles.permissaoText, permissao === 'EDITAR' && styles.permissaoTextActive]}>
-                    Editar
-                  </Text>
-                </TouchableOpacity>
+                {(['VISUALIZAR', 'EDITAR'] as const).map((p) => {
+                  const ativo = permissao === p
+                  const cor = p === 'EDITAR' ? '#EA580C' : '#7C3AED'
+                  return (
+                    <TouchableOpacity
+                      key={p}
+                      style={[styles.permissaoBtn, ativo && { backgroundColor: cor, borderColor: cor }]}
+                      onPress={() => setPermissao(p)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.permissaoText, ativo && { color: '#FFFFFF' }]}>
+                        {p === 'VISUALIZAR' ? '👁️ Visualizar' : '✏️ Editar'}
+                      </Text>
+                      <Text style={[styles.permissaoSub, ativo && styles.permissaoSubActive]}>
+                        {p === 'VISUALIZAR' ? 'Só vê seus compromissos' : 'Cria e edita compromissos'}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
               </View>
               <TouchableOpacity
                 style={[styles.convidarBtn, enviando && styles.btnDisabled]}
@@ -258,15 +426,33 @@ export default function CompartilhamentoScreen() {
         // Convite de compromisso recebido (📌)
         if (item.type === 'compRecebido' && item.compData) {
           const r = item.compData
-          const st = getStatusStyle(r.STATUS)
+          const st = getStatusStyle(r.STATUS, 'recebido')
           const dataFormatada = r.compromisso?.DATA_INICIO
             ? new Date(r.compromisso.DATA_INICIO).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
             : ''
+          const compNavData = r.STATUS === 'ACEITO' && r.compromissoCopia
+            ? { ...r.compromissoCopia, compartilhado: true, permissao: r.PERMISSAO || 'VISUALIZAR', dono_nome: r.remetente?.NOME || r.remetente?.EMAIL }
+            : null
 
+          const isSelected = selecionadosComp.includes(r.ID)
           return (
-            <View style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }]}>
+            <TouchableOpacity
+              style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }, isSelected && { backgroundColor: '#EDE9FE' }]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (modoSelecaoComp) { toggleSelecaoComp(r.ID); return }
+                compNavData && navigation.navigate('DetalhesCompromisso', { compromisso: compNavData })
+              }}
+              onLongPress={() => handleLongPressComp(r.ID)}
+              delayLongPress={400}
+            >
               <View style={styles.itemHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  {modoSelecaoComp && (
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                      {isSelected && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>✓</Text>}
+                    </View>
+                  )}
                   <Text style={{ fontSize: 14 }}>📌</Text>
                   <Text style={[styles.itemNome, { flex: 1 }]} numberOfLines={1}>
                     {r.compromisso?.TITULO || 'Compromisso'}
@@ -301,16 +487,37 @@ export default function CompartilhamentoScreen() {
                   </TouchableOpacity>
                 </View>
               )}
-            </View>
+              {r.STATUS === 'ACEITO' && (
+                <TouchableOpacity
+                  style={styles.sairBtn}
+                  onPress={() => handleRemoverCompromisso(r.ID, 'desfazer')}
+                >
+                  <Text style={styles.sairBtnText}>Desfazer aceite</Text>
+                </TouchableOpacity>
+              )}
+              {r.STATUS === 'RECUSADO' && (
+                <TouchableOpacity
+                  style={styles.arquivarBtn}
+                  onPress={() => handleRemoverCompromisso(r.ID, 'arquivar')}
+                >
+                  <Text style={styles.arquivarBtnText}>📦 Arquivar</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
           )
         }
 
         // Convite de compromisso enviado (📌)
         if (item.type === 'compEnviado' && item.compData) {
           const e = item.compData
-          const st = getStatusStyle(e.STATUS)
+          const st = getStatusStyle(e.STATUS, 'enviado')
+          const compNavData = e.compromisso ? { ...e.compromisso } : null
           return (
-            <View style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }]}>
+            <TouchableOpacity
+              style={[styles.itemCard, { borderLeftWidth: 3, borderLeftColor: '#7C3AED' }]}
+              activeOpacity={compNavData ? 0.7 : 1}
+              onPress={() => compNavData && navigation.navigate('DetalhesCompromisso', { compromisso: compNavData })}
+            >
               <View style={styles.itemHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
                   <Text style={{ fontSize: 14 }}>📌</Text>
@@ -328,14 +535,30 @@ export default function CompartilhamentoScreen() {
               <Text style={styles.itemDate}>
                 Enviado em {new Date(e.DATA_COMPARTILHAMENTO).toLocaleDateString('pt-BR')}
               </Text>
-            </View>
+              {e.STATUS === 'PENDENTE' && (
+                <TouchableOpacity
+                  style={styles.removerBtn}
+                  onPress={() => handleRemoverCompromisso(e.ID, 'cancelar')}
+                >
+                  <Text style={styles.removerBtnText}>Cancelar convite</Text>
+                </TouchableOpacity>
+              )}
+              {e.STATUS === 'ACEITO' && (
+                <TouchableOpacity
+                  style={styles.removerBtn}
+                  onPress={() => handleRemoverCompromisso(e.ID, 'revogar')}
+                >
+                  <Text style={styles.removerBtnText}>🚫 Revogar acesso</Text>
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
           )
         }
 
         // Convite de agenda recebido (📅)
         if (item.type === 'recebido' && item.data) {
           const r = item.data
-          const st = getStatusStyle(r.STATUS)
+          const st = getStatusStyle(r.STATUS, 'recebido')
           return (
             <View style={styles.itemCard}>
               <View style={styles.itemHeader}>
@@ -345,7 +568,7 @@ export default function CompartilhamentoScreen() {
                 </View>
               </View>
               <Text style={styles.itemSub}>
-                Agenda: {r.agenda?.NOME || 'Agenda'} | {r.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
+                Agenda: {r.agenda?.NOME || 'Agenda'} | Permissão: {r.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
               </Text>
               <Text style={styles.itemDate}>
                 Convidado em {new Date(r.DATA_CONVITE).toLocaleDateString('pt-BR')}
@@ -374,6 +597,14 @@ export default function CompartilhamentoScreen() {
                   <Text style={styles.sairBtnText}>Sair</Text>
                 </TouchableOpacity>
               )}
+              {r.STATUS === 'RECUSADO' && (
+                <TouchableOpacity
+                  style={styles.arquivarBtn}
+                  onPress={() => handleArquivarConviteAgenda(r.ID_COMPARTILHAMENTO)}
+                >
+                  <Text style={styles.arquivarBtnText}>📦 Arquivar</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )
         }
@@ -381,17 +612,25 @@ export default function CompartilhamentoScreen() {
         // Convite enviado
         if (item.type === 'enviado' && item.data) {
           const e = item.data
-          const st = getStatusStyle(e.STATUS)
+          const st = getStatusStyle(e.STATUS, 'enviado')
           return (
             <View style={styles.itemCard}>
               <View style={styles.itemHeader}>
-                <Text style={styles.itemNome}>{e.convidado?.NOME || e.convidado?.EMAIL || 'Usuário'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  <Text style={{ fontSize: 14 }}>📅</Text>
+                  <Text style={[styles.itemNome, { flex: 1 }]} numberOfLines={1}>
+                    {e.convidado?.NOME || e.convidado?.EMAIL || 'Usuário'}
+                  </Text>
+                </View>
                 <View style={[styles.badge, { backgroundColor: st.bg }]}>
                   <Text style={[styles.badgeText, { color: st.text }]}>{st.label}</Text>
                 </View>
               </View>
               <Text style={styles.itemSub}>
-                {e.convidado?.EMAIL} | {e.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
+                📅 Minha agenda | Permissão: {e.PERMISSAO === 'EDITAR' ? 'Editar' : 'Visualizar'}
+              </Text>
+              <Text style={styles.itemSub}>
+                {e.convidado?.EMAIL}
               </Text>
               <Text style={styles.itemDate}>
                 Enviado em {new Date(e.DATA_CONVITE).toLocaleDateString('pt-BR')}
@@ -409,6 +648,27 @@ export default function CompartilhamentoScreen() {
         return null
       }}
     />
+
+    {dialogCfg && (
+      <ConfirmDialog
+        visible={true}
+        title={dialogCfg.title}
+        message={dialogCfg.message}
+        confirmLabel={dialogCfg.confirmLabel}
+        destructive={dialogCfg.destructive}
+        onConfirm={async () => { setDialogCfg(null); await dialogCfg.onConfirm() }}
+        onCancel={() => setDialogCfg(null)}
+      />
+    )}
+    <ConfirmDialog
+      visible={!!alertCfg}
+      type={alertCfg?.type}
+      title={alertCfg?.title || ''}
+      message={alertCfg?.message || ''}
+      onConfirm={() => { const fn = alertCfg?.onConfirm; setAlertCfg(null); fn?.() }}
+      onCancel={() => setAlertCfg(null)}
+    />
+    </View>
   )
 }
 
@@ -416,6 +676,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' },
   list: { padding: 16, paddingBottom: 40 },
+
+  // Barra modo seleção
+  selecaoTopBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E40AF', paddingHorizontal: 12, paddingVertical: 10, gap: 8 },
+  selecaoCloseBtn: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#EF4444', borderRadius: 8 },
+  selecaoCloseText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  selecaoTopText: { flex: 1, color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
+  selecaoAcaoBtn: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#16A34A', borderRadius: 8 },
+  selecaoAcaoBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+
+  // Checkbox
+  checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#7C3AED', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  checkboxSelected: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
 
   // Card formulário
   card: {
@@ -441,19 +713,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     color: '#111827',
   },
+  permissaoLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8 },
   permissaoRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   permissaoBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#D1D5DB',
     backgroundColor: '#F9FAFB',
   },
-  permissaoActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  permissaoText: { fontSize: 14, fontWeight: '500', color: '#6B7280' },
-  permissaoTextActive: { color: '#FFFFFF' },
+  permissaoText: { fontSize: 14, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1 },
+  permissaoSub: { fontSize: 11, color: '#9CA3AF', marginTop: 2, textAlign: 'center' },
+  permissaoSubActive: { color: 'rgba(255,255,255,0.8)' },
   convidarBtn: {
     backgroundColor: '#2563EB',
     borderRadius: 12,
@@ -505,4 +778,6 @@ const styles = StyleSheet.create({
   sairBtnText: { color: '#DC2626', fontSize: 14, fontWeight: '500' },
   removerBtn: { backgroundColor: '#FEE2E2', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   removerBtnText: { color: '#DC2626', fontSize: 14, fontWeight: '500' },
+  arquivarBtn: { backgroundColor: '#F3F4F6', borderRadius: 10, paddingVertical: 8, alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 16 },
+  arquivarBtnText: { color: '#6B7280', fontSize: 13, fontWeight: '500' },
 })

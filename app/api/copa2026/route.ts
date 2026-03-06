@@ -117,7 +117,7 @@ const JOGOS_COPA_2026: any[] = [
 
   // ========== GRUPO B ==========
   { grupo: 'B', rodada: 1, date: '2026-06-12T19:00:00Z', home: 'Canadá', away: 'A definir (Europa A)', city: 'Toronto', stadium: 'BMO Field' },
-  { grupo: 'B', rodada: 1, date: '2026-06-12T19:00:00Z', home: 'Qatar', away: 'Suíça', city: 'San Francisco', stadium: "Levi's Stadium" },
+  { grupo: 'B', rodada: 1, date: '2026-06-13T19:00:00Z', home: 'Qatar', away: 'Suíça', city: 'San Francisco', stadium: "Levi's Stadium" },
   { grupo: 'B', rodada: 2, date: '2026-06-18T19:00:00Z', home: 'Suíça', away: 'A definir (Europa A)', city: 'Los Angeles', stadium: 'SoFi Stadium' },
   { grupo: 'B', rodada: 2, date: '2026-06-18T22:00:00Z', home: 'Canadá', away: 'Qatar', city: 'Vancouver', stadium: 'BC Place' },
   { grupo: 'B', rodada: 3, date: '2026-06-24T19:00:00Z', home: 'Suíça', away: 'Canadá', city: 'Vancouver', stadium: 'BC Place' },
